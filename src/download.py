@@ -23,13 +23,13 @@ def download_url(url: str, maxDuration: int = None, destinationDirectory: str = 
             return _perform_download(url, maxDuration=maxDuration, outputTemplate="%(title).10s %(id)s.%(ext)s")
         pass
 
-def _perform_download(url: str, maxDuration: int = None, outputTemplate: str = None, destinationDirectory: str = None, playlistItems: str = "1"):
+def _perform_download(url: str, maxDuration: int = None, outputTemplate: str = None, destinationDirectory: str = None, playlistItems: str = "1", onlyAudio: bool = False):
     # Create a temporary directory to store the downloaded files
     if destinationDirectory is None:
         destinationDirectory = mkdtemp()
 
     ydl_opts = {
-        "format": "bestaudio/best",
+        "format": "bestaudio/best" if onlyAudio else "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         'paths': {
             'home': destinationDirectory
         }

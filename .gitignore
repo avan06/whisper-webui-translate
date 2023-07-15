@@ -1,6 +1,10 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 .vscode/
 flagged/
 *.py[cod]
 *$py.class
+.vs/
+output/
+tmp/
+venv/

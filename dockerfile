@@ -3,7 +3,7 @@
 FROM huggingface/transformers-pytorch-gpu
 EXPOSE 7860
 
-ARG WHISPER_IMPLEMENTATION=whisper
+ARG WHISPER_IMPLEMENTATION=faster-whisper
 ENV WHISPER_IMPLEMENTATION=${WHISPER_IMPLEMENTATION}
 
 ADD . /opt/whisper-webui/
@@ -27,4 +27,4 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /opt/whisper-webui/
 ENTRYPOINT ["python3"]
-CMD ["app.py", "--input_audio_max_duration", "-1", "--server_name", "0.0.0.0", "--auto_parallel", "True"]
+CMD ["app.py", "--whisper_implementation", "faster-whisper", "--input_audio_max_duration", "-1", "--server_name", "0.0.0.0", "--auto_parallel", "True"]

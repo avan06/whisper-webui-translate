@@ -17,6 +17,7 @@ from src.config import VAD_INITIAL_PROMPT_MODE_VALUES, ApplicationConfig, VadIni
 from src.hooks.progressListener import ProgressListener
 from src.hooks.subTaskProgressListener import SubTaskProgressListener
 from src.hooks.whisperProgressHook import create_progress_listener_handle
+from src.languages import _TO_LANGUAGE_CODE
 from src.languages import get_language_names
 from src.modelCache import ModelCache
 from src.prompts.jsonPromptStrategy import JsonPromptStrategy
@@ -35,6 +36,8 @@ from src.utils import optional_int, slugify, write_srt, write_vtt
 from src.vad import AbstractTranscription, NonSpeechStrategy, PeriodicTranscriptionConfig, TranscriptionConfig, VadPeriodicTranscription, VadSileroTranscription
 from src.whisper.abstractWhisperContainer import AbstractWhisperContainer
 from src.whisper.whisperFactory import create_whisper_container
+
+import shutil
 
 # Configure more application defaults in config.json5
 
@@ -249,6 +252,14 @@ class WhisperTranscriber:
                 # Cleanup source
                 if self.deleteUploadedFiles:
                     for source in sources:
+                        if self.app_config.save_downloaded_files and self.app_config.output_dir is not None and urlData:
+                            print("Saving downloaded file [" + os.path.basename(source.source_path) + "]")
+                            try:
+                                shutil.copy(source.source_path, self.app_config.output_dir)
+                            except Exception as e:
+                                # Ignore error - it's just a cleanup
+                                print("Error saving downloaded file " + source.source_path + ": " + str(e))
+                            
                         print("Deleting source file " + source.source_path)
 
                         try:
@@ -571,7 +582,7 @@ def create_ui(app_config: ApplicationConfig):
     else:
         print("Queue mode disabled - progress bars will not be shown.")
    
-    demo.launch(share=app_config.share, server_name=app_config.server_name, server_port=app_config.server_port)
+    demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=app_config.server_port)
     
     # Clean up
     ui.close()
@@ -616,6 +627,15 @@ if __name__ == '__main__':
                         help="the compute type to use for inference")
     parser.add_argument("--threads", type=optional_int, default=0, 
                         help="number of threads used by torch for CPU inference; supercedes MKL_NUM_THREADS/OMP_NUM_THREADS")
+    parser.add_argument("--vad_max_merge_size", type=int, default=default_app_config.vad_max_merge_size, \
+                        help="The number of VAD - Max Merge Size (s).") # 30
+    parser.add_argument("--language", type=str, default=None, choices=sorted(get_language_names()) + sorted([k.title() for k in _TO_LANGUAGE_CODE.keys()]),
+                        help="language spoken in the audio, specify None to perform language detection")
+    parser.add_argument("--save_downloaded_files", action='store_true', \
+                        help="True to move downloaded files to outputs.")
+    parser.add_argument("--autolaunch", action='store_true', \
+                        help="open the webui URL in the system's default browser upon launch")
+                        
 
     args = parser.parse_args().__dict__
 
