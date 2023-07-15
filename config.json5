@@ -48,7 +48,7 @@
     // * WEBUI options *
 
     // Maximum audio file length in seconds, or -1 for no limit. Ignored by CLI.
-    "input_audio_max_duration": 600,
+    "input_audio_max_duration": 1800,
     // True to share the app on HuggingFace.
     "share": false,
     // The host or IP to bind to. If None, bind to localhost.
@@ -65,10 +65,10 @@
     // The default implementation to use for Whisper. Can be "whisper" or "faster-whisper".
     // Note that you must either install the requirements for faster-whisper (requirements-fasterWhisper.txt) 
     // or whisper (requirements.txt)
-    "whisper_implementation": "whisper",
+    "whisper_implementation": "faster-whisper",
 
     // The default model name.
-    "default_model_name": "medium",
+    "default_model_name": "large-v2",
     // The default VAD.
     "default_vad": "silero-vad",
     // A commma delimited list of CUDA devices to use for parallel processing. If None, disable parallel processing.
@@ -94,7 +94,7 @@
     // The window size (in seconds) to merge voice segments
     "vad_merge_window": 5,
     // The maximum size (in seconds) of a voice segment
-    "vad_max_merge_size": 30,
+    "vad_max_merge_size": 90,
     // The padding (in seconds) to add to each voice segment
     "vad_padding": 1,
     // Whether or not to prepend the initial prompt to each VAD segment (prepend_all_segments), or just the first segment (prepend_first_segment)
