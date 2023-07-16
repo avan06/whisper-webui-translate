@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 import json
 import math
 from typing import Iterator, Union
@@ -526,52 +526,78 @@ def create_ui(app_config: ApplicationConfig):
         gr.Checkbox(label="Word Timestamps - Highlight Words", value=app_config.highlight_words),
     ]
 
-    is_queue_mode = app_config.queue_concurrency_count is not None and app_config.queue_concurrency_count > 0    
-
-    simple_transcribe = gr.Interface(fn=ui.transcribe_webui_simple_progress if is_queue_mode else ui.transcribe_webui_simple, 
-                                     description=ui_description, article=ui_article, inputs=[
-        *common_inputs(),
-        *common_vad_inputs(),
-        *common_word_timestamps_inputs(),
-    ], outputs=[
+    common_output = lambda : [
         gr.File(label="Download"),
-        gr.Text(label="Transcription"), 
-        gr.Text(label="Segments")
-    ])
+        gr.Text(label="Transcription"),
+        gr.Text(label="Segments"),
+    ]
+
+    is_queue_mode = app_config.queue_concurrency_count is not None and app_config.queue_concurrency_count > 0
+
+    simple_callback = gr.CSVLogger()
+
+    with gr.Blocks() as simple_transcribe:
+        gr.Markdown(ui_description)
+        with gr.Row():
+            with gr.Column():
+                simple_submit = gr.Button("Submit", variant="primary")
+                simple_input = common_inputs() + common_vad_inputs() + common_word_timestamps_inputs()
+            with gr.Column():
+                simple_output = common_output()
+                simple_flag = gr.Button("Flag")
+        gr.Markdown(ui_article)
+
+        # This needs to be called at some point prior to the first call to callback.flag()
+        simple_callback.setup(simple_input + simple_output, "flagged")
+
+        simple_submit.click(fn=ui.transcribe_webui_simple_progress if is_queue_mode else ui.transcribe_webui_simple,
+                    inputs=simple_input, outputs=simple_output)
+        # We can choose which components to flag -- in this case, we'll flag all of them
+        simple_flag.click(lambda *args: print("simple_callback.flag...") or simple_callback.flag(args), simple_input + simple_output, None, preprocess=False)
 
     full_description = ui_description + "\n\n\n\n" + "Be careful when changing some of the options in the full interface - this can cause the model to crash."
 
-    full_transcribe = gr.Interface(fn=ui.transcribe_webui_full_progress if is_queue_mode else ui.transcribe_webui_full,
-                                   description=full_description, article=ui_article, inputs=[
-        *common_inputs(),
+    full_callback = gr.CSVLogger()
 
-        *common_vad_inputs(),
-        gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding),
-        gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window),
-        gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode"),
-        
-        *common_word_timestamps_inputs(),
-        gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations),
-        gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations),
+    with gr.Blocks() as full_transcribe:
+        gr.Markdown(full_description)
+        with gr.Row():
+            with gr.Column():
+                full_submit = gr.Button("Submit", variant="primary")
+                full_input1 = common_inputs() + common_vad_inputs() + [
+                gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding),
+                gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window),
+                gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode")]
 
-        gr.TextArea(label="Initial Prompt"),
-        gr.Number(label="Temperature", value=app_config.temperature),
-        gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0),
-        gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0),
-        gr.Number(label="Patience - Zero temperature", value=app_config.patience),
-        gr.Number(label="Length Penalty - Any temperature", value=app_config.length_penalty), 
-        gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens),
-        gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text),
-        gr.Checkbox(label="FP16", value=app_config.fp16),
-        gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback),
-        gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold),
-        gr.Number(label="Logprob threshold", value=app_config.logprob_threshold),
-        gr.Number(label="No speech threshold", value=app_config.no_speech_threshold),
-    ], outputs=[
-        gr.File(label="Download"),
-        gr.Text(label="Transcription"), 
-        gr.Text(label="Segments")
-    ])
+                full_input2 = common_word_timestamps_inputs() + [
+                gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations),
+                gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations),
+                gr.TextArea(label="Initial Prompt"),
+                gr.Number(label="Temperature", value=app_config.temperature),
+                gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0),
+                gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0),
+                gr.Number(label="Patience - Zero temperature", value=app_config.patience),
+                gr.Number(label="Length Penalty - Any temperature", value=app_config.length_penalty),
+                gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens),
+                gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text),
+                gr.Checkbox(label="FP16", value=app_config.fp16),
+                gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback),
+                gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold),
+                gr.Number(label="Logprob threshold", value=app_config.logprob_threshold),
+                gr.Number(label="No speech threshold", value=app_config.no_speech_threshold)]
+
+            with gr.Column():
+                full_output = common_output()
+                full_flag = gr.Button("Flag")
+        gr.Markdown(ui_article)
+
+        # This needs to be called at some point prior to the first call to callback.flag()
+        full_callback.setup(full_input1 + full_input2 + full_output, "flagged")
+
+        full_submit.click(fn=ui.transcribe_webui_full_progress if is_queue_mode else ui.transcribe_webui_full,
+                    inputs=full_input1+full_input2, outputs=full_output)
+        # We can choose which components to flag -- in this case, we'll flag all of them
+        full_flag.click(lambda *args: print("full_callback.flag...") or full_callback.flag(args), full_input1 + full_input2 + full_output, None, preprocess=False)
 
     demo = gr.TabbedInterface([simple_transcribe, full_transcribe], tab_names=["Simple", "Full"])
 
