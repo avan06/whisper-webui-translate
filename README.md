@@ -1,7 +1,7 @@
 ---
-title: Whisper Webui
-emoji: ⚡
-colorFrom: pink
+title: Faster Whisper Webui
+emoji: ✨
+colorFrom: blue
 colorTo: purple
 sdk: gradio
 sdk_version: 3.23.0
