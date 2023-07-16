@@ -102,10 +102,14 @@ class WhisperTranscriber:
                                          vad, vadMergeWindow, vadMaxMergeSize, 
                                          word_timestamps: bool = False, highlight_words: bool = False, 
                                          progress=gr.Progress()):
-        
+        if languageName == "Chinese":
+            initial_prompt = "繁體: "
+            self.app_config.vad_initial_prompt_mode = "prepend_all_segments"
+
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, self.app_config.vad_padding, self.app_config.vad_prompt_window, self.app_config.vad_initial_prompt_mode)
 
         return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions, 
+                                     initial_prompt=initial_prompt, 
                                      word_timestamps=word_timestamps, highlight_words=highlight_words, progress=progress)
 
     # Entry function for the full tab
@@ -139,6 +143,10 @@ class WhisperTranscriber:
             temperature = tuple(np.arange(temperature, 1.0 + 1e-6, temperature_increment_on_fallback))
         else:
             temperature = [temperature]
+
+        if languageName == "Chinese":
+            initial_prompt = "繁體: " + initial_prompt
+            self.app_config.vad_initial_prompt_mode = "prepend_all_segments"
 
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, vadPadding, vadPromptWindow, vadInitialPromptMode)
 
