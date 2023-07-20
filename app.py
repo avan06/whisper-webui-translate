@@ -102,15 +102,14 @@ class WhisperTranscriber:
                                          vad, vadMergeWindow, vadMaxMergeSize, 
                                          word_timestamps: bool = False, highlight_words: bool = False, 
                                          progress=gr.Progress()):
+        decodeOptions = dict(word_timestamps=word_timestamps)
         if languageName == "Chinese":
-            initial_prompt = "繁體: "
+            decodeOptions.update(initial_prompt="繁體: ")
             self.app_config.vad_initial_prompt_mode = "prepend_all_segments"
 
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, self.app_config.vad_padding, self.app_config.vad_prompt_window, self.app_config.vad_initial_prompt_mode)
 
-        return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions, 
-                                     initial_prompt=initial_prompt, 
-                                     word_timestamps=word_timestamps, highlight_words=highlight_words, progress=progress)
+        return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions, highlight_words=highlight_words, progress=progress, **decodeOptions)
 
     # Entry function for the full tab
     def transcribe_webui_full(self, modelName, languageName, urlData, multipleFiles, microphoneData, task, 
@@ -260,21 +259,37 @@ class WhisperTranscriber:
                 # Cleanup source
                 if self.deleteUploadedFiles:
                     for source in sources:
-                        if self.app_config.save_downloaded_files and self.app_config.output_dir is not None and urlData:
-                            print("Saving downloaded file [" + os.path.basename(source.source_path) + "]")
+                        if self.app_config.merge_subtitle_with_sources and self.app_config.output_dir is not None and len(source_download) > 0:
+                            print("merge subtitle(srt) with source file [" + source.source_name + "]")
+                            outRsult = ""
+                            try:
+                                srt_path = source_download[0]
+                                save_path = os.path.join(self.app_config.output_dir, source.source_name)
+                                save_without_ext, ext = os.path.splitext(save_path)
+                                output_with_srt = save_without_ext + ".srt" + ext
+                                
+                                #ffmpeg -i "input.mp4" -i "input.srt" -c copy -c:s mov_text output.mp4
+                                input_file = ffmpeg.input(source.source_path)
+                                input_srt = ffmpeg.input(srt_path)
+                                out = ffmpeg.output(input_file, input_srt, output_with_srt, vcodec='copy', acodec='copy', scodec='mov_text')
+                                outRsult = out.run()
+                            except Exception as e:
+                                # Ignore error - it's just a cleanup
+                                print("Error merge subtitle with source file: \n" + source.source_path + ", \n" + str(e), outRsult)
+                        elif self.app_config.save_downloaded_files and self.app_config.output_dir is not None and urlData:
+                            print("Saving downloaded file [" + source.source_name + "]")
                             try:
                                 shutil.copy(source.source_path, self.app_config.output_dir)
                             except Exception as e:
                                 # Ignore error - it's just a cleanup
-                                print("Error saving downloaded file " + source.source_path + ": " + str(e))
+                                print("Error saving downloaded file: \n" + source.source_path + ", \n" + str(e))
                             
-                        print("Deleting source file " + source.source_path)
-
+                        print("Deleting temporary source file: " + source.source_path)
                         try:
                             os.remove(source.source_path)
                         except Exception as e:
                             # Ignore error - it's just a cleanup
-                            print("Error deleting source file " + source.source_path + ": " + str(e))
+                            print("Error deleting temporary source file: \n" + source.source_path + ", \n" + str(e))
         
         except ExceededMaximumDuration as e:
             return [], ("[ERROR]: Maximum remote video length is " + str(e.maxDuration) + "s, file was " + str(e.videoDuration) + "s"), "[ERROR]"
@@ -481,7 +496,7 @@ class WhisperTranscriber:
 def create_ui(app_config: ApplicationConfig):
     ui = WhisperTranscriber(app_config.input_audio_max_duration, app_config.vad_process_timeout, app_config.vad_cpu_cores, 
                             app_config.delete_uploaded_files, app_config.output_dir, app_config)
-
+    
     # Specify a list of devices to use for parallel processing
     ui.set_parallel_devices(app_config.vad_parallel_devices)
     ui.set_auto_parallel(app_config.auto_parallel)
@@ -666,7 +681,9 @@ if __name__ == '__main__':
     parser.add_argument("--language", type=str, default=None, choices=sorted(get_language_names()) + sorted([k.title() for k in _TO_LANGUAGE_CODE.keys()]),
                         help="language spoken in the audio, specify None to perform language detection")
     parser.add_argument("--save_downloaded_files", action='store_true', \
-                        help="True to move downloaded files to outputs.")
+                        help="True to move downloaded files to outputs directory. This argument will take effect only after output_dir is set.")
+    parser.add_argument("--merge_subtitle_with_sources", action='store_true', \
+                        help="True to merge subtitle(srt) with sources and move the sources files to the outputs directory. This argument will take effect only after output_dir is set.")
     parser.add_argument("--autolaunch", action='store_true', \
                         help="open the webui URL in the system's default browser upon launch")
                         
