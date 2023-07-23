@@ -29,7 +29,7 @@ def _perform_download(url: str, maxDuration: int = None, outputTemplate: str = N
         destinationDirectory = mkdtemp()
 
     ydl_opts = {
-        "format": "bestaudio/best" if onlyAudio else "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+        "format": "bestaudio/best" if onlyAudio else "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best",
         'paths': {
             'home': destinationDirectory
         }
