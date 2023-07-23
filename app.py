@@ -252,6 +252,18 @@ class WhisperTranscriber:
                 return download, text, vtt
 
             finally:
+                if languageName == "Chinese":
+                    for file_path in source_download:
+                        try:
+                            with open(file_path, "r+", encoding="utf-8") as source:
+                                content = source.read()
+                                content = zhconv.convert(content, "zh-tw")
+                                source.seek(0)
+                                source.write(content)
+                        except Exception as e:
+                            # Ignore error - it's just a cleanup
+                            print("Error converting Traditional Chinese with download source file: \n" + file_path + ", \n" + str(e))
+
                 # Cleanup source
                 if self.deleteUploadedFiles:
                     for source in sources:
