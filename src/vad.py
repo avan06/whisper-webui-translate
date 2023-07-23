@@ -204,7 +204,7 @@ class AbstractTranscription(ABC):
                 detected_language = languageCounter.most_common(1)[0][0] if len(languageCounter) > 0 else None
 
                 print("Running whisper from ", format_timestamp(segment_start), " to ", format_timestamp(segment_end), ", duration: ", 
-                    segment_duration, "expanded: ", segment_expand_amount, "prompt: ", segment_prompt, "language: ", detected_language)
+                    segment_duration, "expanded: ", segment_expand_amount, ", prompt: ", segment_prompt, ", detected language: ", detected_language)
 
                 perf_start_time = time.perf_counter()
 

@@ -19,6 +19,7 @@ from src.hooks.subTaskProgressListener import SubTaskProgressListener
 from src.hooks.whisperProgressHook import create_progress_listener_handle
 from src.languages import _TO_LANGUAGE_CODE
 from src.languages import get_language_names
+from src.languages import get_language_from_name
 from src.modelCache import ModelCache
 from src.prompts.jsonPromptStrategy import JsonPromptStrategy
 from src.prompts.prependPromptStrategy import PrependPromptStrategy
@@ -38,6 +39,7 @@ from src.whisper.abstractWhisperContainer import AbstractWhisperContainer
 from src.whisper.whisperFactory import create_whisper_container
 
 import shutil
+import zhconv
 
 # Configure more application defaults in config.json5
 
@@ -102,14 +104,11 @@ class WhisperTranscriber:
                                          vad, vadMergeWindow, vadMaxMergeSize, 
                                          word_timestamps: bool = False, highlight_words: bool = False, 
                                          progress=gr.Progress()):
-        decodeOptions = dict(word_timestamps=word_timestamps)
-        if languageName == "Chinese":
-            decodeOptions.update(initial_prompt="繁體: ")
-            self.app_config.vad_initial_prompt_mode = "prepend_all_segments"
 
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, self.app_config.vad_padding, self.app_config.vad_prompt_window, self.app_config.vad_initial_prompt_mode)
 
-        return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions, highlight_words=highlight_words, progress=progress, **decodeOptions)
+        return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions, 
+                                     word_timestamps=word_timestamps, highlight_words=highlight_words, progress=progress)
 
     # Entry function for the full tab
     def transcribe_webui_full(self, modelName, languageName, urlData, multipleFiles, microphoneData, task, 
@@ -143,10 +142,6 @@ class WhisperTranscriber:
         else:
             temperature = [temperature]
 
-        if languageName == "Chinese":
-            initial_prompt = "繁體: " + initial_prompt
-            self.app_config.vad_initial_prompt_mode = "prepend_all_segments"
-
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, vadPadding, vadPromptWindow, vadInitialPromptMode)
 
         return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions,
@@ -163,7 +158,8 @@ class WhisperTranscriber:
             sources = self.__get_source(urlData, multipleFiles, microphoneData)
 
             try:
-                selectedLanguage = languageName.lower() if len(languageName) > 0 else None
+                langObj = get_language_from_name(languageName)
+                selectedLanguage = languageName.lower() if languageName is not None and len(languageName) > 0 else None
                 selectedModel = modelName if modelName is not None else "base"
 
                 model = create_whisper_container(whisper_implementation=self.app_config.whisper_implementation, 
@@ -256,6 +252,18 @@ class WhisperTranscriber:
                 return download, text, vtt
 
             finally:
+                if languageName == "Chinese":
+                    for file_path in source_download:
+                        try:
+                            with open(file_path, "r+", encoding="utf-8") as source:
+                                content = source.read()
+                                content = zhconv.convert(content, "zh-tw")
+                                source.seek(0)
+                                source.write(content)
+                        except Exception as e:
+                            # Ignore error - it's just a cleanup
+                            print("Error converting Traditional Chinese with download source file: \n" + file_path + ", \n" + str(e))
+
                 # Cleanup source
                 if self.deleteUploadedFiles:
                     for source in sources:
@@ -266,13 +274,14 @@ class WhisperTranscriber:
                                 srt_path = source_download[0]
                                 save_path = os.path.join(self.app_config.output_dir, source.source_name)
                                 save_without_ext, ext = os.path.splitext(save_path)
-                                output_with_srt = save_without_ext + ".srt" + ext
+                                lang_ext = "." + langObj.code if langObj is not None else ""
+                                output_with_srt = save_without_ext + lang_ext + ext
                                 
                                 #ffmpeg -i "input.mp4" -i "input.srt" -c copy -c:s mov_text output.mp4
                                 input_file = ffmpeg.input(source.source_path)
                                 input_srt = ffmpeg.input(srt_path)
                                 out = ffmpeg.output(input_file, input_srt, output_with_srt, vcodec='copy', acodec='copy', scodec='mov_text')
-                                outRsult = out.run()
+                                outRsult = out.run(overwrite_output=True)
                             except Exception as e:
                                 # Ignore error - it's just a cleanup
                                 print("Error merge subtitle with source file: \n" + source.source_path + ", \n" + str(e), outRsult)

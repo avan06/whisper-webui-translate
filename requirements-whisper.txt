@@ -7,3 +7,4 @@ yt-dlp
 torchaudio
 altair
 json5
+zhconv
