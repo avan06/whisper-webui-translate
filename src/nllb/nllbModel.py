@@ -82,7 +82,7 @@ class NllbModel:
             self.trans_model = ctranslate2.Translator(self.model_path, compute_type="auto", device=self.device)
         elif "mt5" in self.model_path:
             self.mt5_prefix = self.whisper_lang.code + "2" + self.nllb_lang.code_whisper + ": "
-            self.trans_tokenizer = transformers.T5Tokenizer.from_pretrained(self.model_path) #requires spiece.model
+            self.trans_tokenizer = transformers.T5Tokenizer.from_pretrained(self.model_path, legacy=False) #requires spiece.model
             self.trans_model = transformers.MT5ForConditionalGeneration.from_pretrained(self.model_path)
             self.trans_translator = transformers.pipeline('text2text-generation', model=self.trans_model, device=self.device, tokenizer=self.trans_tokenizer)
         else: #NLLB
