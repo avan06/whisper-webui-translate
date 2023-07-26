@@ -1,4 +1,4 @@
-﻿ctranslate2
+﻿ctranslate2>=3.16.0
 faster-whisper
 ffmpeg-python==0.2.0
 gradio==3.36.0 
@@ -8,3 +8,4 @@ torch
 torchaudio
 more_itertools
 zhconv
+sentencepiece

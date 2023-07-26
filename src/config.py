@@ -47,11 +47,11 @@ class VadInitialPromptMode(Enum):
             return None
 
 class ApplicationConfig:
-    def __init__(self, models: List[ModelConfig] = [], input_audio_max_duration: int = 600, 
+    def __init__(self, models: List[ModelConfig] = [], nllb_models: List[ModelConfig] = [], input_audio_max_duration: int = 600, 
                  share: bool = False, server_name: str = None, server_port: int = 7860, 
                  queue_concurrency_count: int = 1, delete_uploaded_files: bool = True,
                  whisper_implementation: str = "whisper",
-                 default_model_name: str = "medium", default_vad: str = "silero-vad", 
+                 default_model_name: str = "medium", default_nllb_model_name: str = "distilled-600M", default_vad: str = "silero-vad", 
                  vad_parallel_devices: str = "", vad_cpu_cores: int = 1, vad_process_timeout: int = 1800, 
                  auto_parallel: bool = False, output_dir: str = None,
                  model_dir: str = None, device: str = None, 
@@ -72,6 +72,7 @@ class ApplicationConfig:
                  highlight_words: bool = False):
         
         self.models = models
+        self.nllb_models = nllb_models
         
         # WebUI settings
         self.input_audio_max_duration = input_audio_max_duration
@@ -83,6 +84,7 @@ class ApplicationConfig:
 
         self.whisper_implementation = whisper_implementation
         self.default_model_name = default_model_name
+        self.default_nllb_model_name = default_nllb_model_name
         self.default_vad = default_vad
         self.vad_parallel_devices = vad_parallel_devices
         self.vad_cpu_cores = vad_cpu_cores
@@ -124,6 +126,9 @@ class ApplicationConfig:
     def get_model_names(self):
         return [ x.name for x in self.models ]
 
+    def get_nllb_model_names(self):
+        return [ x.name for x in self.nllb_models ]
+
     def update(self, **new_values):
         result = ApplicationConfig(**self.__dict__)
 
@@ -148,7 +153,9 @@ class ApplicationConfig:
             # Load using json5
             data = json5.load(f)
             data_models = data.pop("models", [])
-
+            data_nllb_models = data.pop("nllb_models", [])
+            
             models = [ ModelConfig(**x) for x in data_models ]
+            nllb_models = [ ModelConfig(**x) for x in data_nllb_models ]
 
-            return ApplicationConfig(models, **data)
+            return ApplicationConfig(models, nllb_models, **data)

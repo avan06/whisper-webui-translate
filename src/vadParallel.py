@@ -204,7 +204,7 @@ class ParallelTranscription(AbstractTranscription):
                 gpu_parallel_context.close()
 
         perf_end_gpu = time.perf_counter()
-        print("Parallel transcription took " + str(perf_end_gpu - perf_start_gpu) + " seconds")
+        print("\nParallel transcription took " + str(perf_end_gpu - perf_start_gpu) + " seconds")
 
         return merged
 

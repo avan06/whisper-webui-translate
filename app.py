@@ -5,8 +5,8 @@ from typing import Iterator, Union
 import argparse
 
 from io import StringIO
+import time
 import os
-import pathlib
 import tempfile
 import zipfile
 import numpy as np
@@ -37,9 +37,14 @@ from src.utils import optional_int, slugify, write_srt, write_vtt
 from src.vad import AbstractTranscription, NonSpeechStrategy, PeriodicTranscriptionConfig, TranscriptionConfig, VadPeriodicTranscription, VadSileroTranscription
 from src.whisper.abstractWhisperContainer import AbstractWhisperContainer
 from src.whisper.whisperFactory import create_whisper_container
+from src.nllb.nllbModel import NllbModel
+from src.nllb.nllbLangs import _TO_NLLB_LANG_CODE
+from src.nllb.nllbLangs import get_nllb_lang_names
+from src.nllb.nllbLangs import get_nllb_lang_from_name
 
 import shutil
 import zhconv
+import tqdm
 
 # Configure more application defaults in config.json5
 
@@ -92,26 +97,26 @@ class WhisperTranscriber:
             print("[Auto parallel] Using GPU devices " + str(self.parallel_device_list) + " and " + str(self.vad_cpu_cores) + " CPU cores for VAD/transcription.")
 
     # Entry function for the simple tab
-    def transcribe_webui_simple(self, modelName, languageName, urlData, multipleFiles, microphoneData, task, 
+    def transcribe_webui_simple(self, modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
                                 vad, vadMergeWindow, vadMaxMergeSize, 
                                 word_timestamps: bool = False, highlight_words: bool = False):
-        return self.transcribe_webui_simple_progress(modelName, languageName, urlData, multipleFiles, microphoneData, task, 
+        return self.transcribe_webui_simple_progress(modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
                                                      vad, vadMergeWindow, vadMaxMergeSize, 
                                                      word_timestamps, highlight_words)
     
     # Entry function for the simple tab progress
-    def transcribe_webui_simple_progress(self, modelName, languageName, urlData, multipleFiles, microphoneData, task, 
+    def transcribe_webui_simple_progress(self, modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
                                          vad, vadMergeWindow, vadMaxMergeSize, 
                                          word_timestamps: bool = False, highlight_words: bool = False, 
                                          progress=gr.Progress()):
 
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, self.app_config.vad_padding, self.app_config.vad_prompt_window, self.app_config.vad_initial_prompt_mode)
 
-        return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions, 
+        return self.transcribe_webui(modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, vadOptions, 
                                      word_timestamps=word_timestamps, highlight_words=highlight_words, progress=progress)
 
     # Entry function for the full tab
-    def transcribe_webui_full(self, modelName, languageName, urlData, multipleFiles, microphoneData, task, 
+    def transcribe_webui_full(self, modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
                               vad, vadMergeWindow, vadMaxMergeSize, vadPadding, vadPromptWindow, vadInitialPromptMode, 
                               # Word timestamps
                               word_timestamps: bool, highlight_words: bool, prepend_punctuations: str, append_punctuations: str,
@@ -119,7 +124,7 @@ class WhisperTranscriber:
                               condition_on_previous_text: bool, fp16: bool, temperature_increment_on_fallback: float, 
                               compression_ratio_threshold: float, logprob_threshold: float, no_speech_threshold: float):
         
-        return self.transcribe_webui_full_progress(modelName, languageName, urlData, multipleFiles, microphoneData, task, 
+        return self.transcribe_webui_full_progress(modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
                                 vad, vadMergeWindow, vadMaxMergeSize, vadPadding, vadPromptWindow, vadInitialPromptMode,
                                 word_timestamps, highlight_words, prepend_punctuations, append_punctuations,
                                 initial_prompt, temperature, best_of, beam_size, patience, length_penalty, suppress_tokens,
@@ -127,7 +132,7 @@ class WhisperTranscriber:
                                 compression_ratio_threshold, logprob_threshold, no_speech_threshold)
 
     # Entry function for the full tab with progress
-    def transcribe_webui_full_progress(self, modelName, languageName, urlData, multipleFiles, microphoneData, task, 
+    def transcribe_webui_full_progress(self, modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
                                         vad, vadMergeWindow, vadMaxMergeSize, vadPadding, vadPromptWindow, vadInitialPromptMode,
                                         # Word timestamps
                                         word_timestamps: bool, highlight_words: bool, prepend_punctuations: str, append_punctuations: str,   
@@ -144,27 +149,33 @@ class WhisperTranscriber:
 
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, vadPadding, vadPromptWindow, vadInitialPromptMode)
 
-        return self.transcribe_webui(modelName, languageName, urlData, multipleFiles, microphoneData, task, vadOptions,
+        return self.transcribe_webui(modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, vadOptions,
                                      initial_prompt=initial_prompt, temperature=temperature, best_of=best_of, beam_size=beam_size, patience=patience, length_penalty=length_penalty, suppress_tokens=suppress_tokens,
                                      condition_on_previous_text=condition_on_previous_text, fp16=fp16,
                                      compression_ratio_threshold=compression_ratio_threshold, logprob_threshold=logprob_threshold, no_speech_threshold=no_speech_threshold, 
                                      word_timestamps=word_timestamps, prepend_punctuations=prepend_punctuations, append_punctuations=append_punctuations, highlight_words=highlight_words,
                                      progress=progress)
 
-    def transcribe_webui(self, modelName, languageName, urlData, multipleFiles, microphoneData, task, 
+    def transcribe_webui(self, modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
                          vadOptions: VadOptions, progress: gr.Progress = None, highlight_words: bool = False, 
                          **decodeOptions: dict):
         try:
             sources = self.__get_source(urlData, multipleFiles, microphoneData)
 
             try:
-                langObj = get_language_from_name(languageName)
+                whisper_lang = get_language_from_name(languageName)
                 selectedLanguage = languageName.lower() if languageName is not None and len(languageName) > 0 else None
                 selectedModel = modelName if modelName is not None else "base"
 
                 model = create_whisper_container(whisper_implementation=self.app_config.whisper_implementation, 
                                                  model_name=selectedModel, compute_type=self.app_config.compute_type, 
                                                  cache=self.model_cache, models=self.app_config.models)
+
+                nllb_lang = get_nllb_lang_from_name(nllbLangName)
+                selectedNllbModelName = nllbModelName if nllbModelName is not None and len(nllbModelName) > 0 else "nllb-200-distilled-600M/facebook"
+                selectedNllbModel = next((modelConfig for modelConfig in self.app_config.nllb_models if modelConfig.name == selectedNllbModelName), None)
+
+                nllb_model = NllbModel(model_config=selectedNllbModel, whisper_lang=whisper_lang, nllb_lang=nllb_lang) # load_model=True
 
                 # Result
                 download = []
@@ -208,7 +219,7 @@ class WhisperTranscriber:
                     # Update progress
                     current_progress += source_audio_duration
 
-                    source_download, source_text, source_vtt = self.write_result(result, filePrefix, outputDirectory, highlight_words)
+                    source_download, source_text, source_vtt = self.write_result(result, nllb_model, filePrefix, outputDirectory, highlight_words)
 
                     if len(sources) > 1:
                         # Add new line separators
@@ -252,30 +263,19 @@ class WhisperTranscriber:
                 return download, text, vtt
 
             finally:
-                if languageName == "Chinese":
-                    for file_path in source_download:
-                        try:
-                            with open(file_path, "r+", encoding="utf-8") as source:
-                                content = source.read()
-                                content = zhconv.convert(content, "zh-tw")
-                                source.seek(0)
-                                source.write(content)
-                        except Exception as e:
-                            # Ignore error - it's just a cleanup
-                            print("Error converting Traditional Chinese with download source file: \n" + file_path + ", \n" + str(e))
-
                 # Cleanup source
                 if self.deleteUploadedFiles:
                     for source in sources:
                         if self.app_config.merge_subtitle_with_sources and self.app_config.output_dir is not None and len(source_download) > 0:
-                            print("merge subtitle(srt) with source file [" + source.source_name + "]")
+                            print("\nmerge subtitle(srt) with source file [" + source.source_name + "]\n")
                             outRsult = ""
                             try:
                                 srt_path = source_download[0]
                                 save_path = os.path.join(self.app_config.output_dir, source.source_name)
                                 save_without_ext, ext = os.path.splitext(save_path)
-                                lang_ext = "." + langObj.code if langObj is not None else ""
-                                output_with_srt = save_without_ext + lang_ext + ext
+                                source_lang = "." + whisper_lang.code if whisper_lang is not None else ""
+                                translate_lang = "." + nllb_lang.code if nllb_lang is not None else ""
+                                output_with_srt = save_without_ext + source_lang + translate_lang + ext
                                 
                                 #ffmpeg -i "input.mp4" -i "input.srt" -c copy -c:s mov_text output.mp4
                                 input_file = ffmpeg.input(source.source_path)
@@ -435,20 +435,41 @@ class WhisperTranscriber:
 
         return config
 
-    def write_result(self, result: dict, source_name: str, output_dir: str, highlight_words: bool = False):
+    def write_result(self, result: dict, nllb_model: NllbModel, source_name: str, output_dir: str, highlight_words: bool = False):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         text = result["text"]
+        segments = result["segments"]
         language = result["language"]
         languageMaxLineWidth = self.__get_max_line_width(language)
 
-        print("Max line width " + str(languageMaxLineWidth))
+        if nllb_model.nllb_lang is not None:
+            try:
+                pbar = tqdm.tqdm(total=len(segments))
+                perf_start_time = time.perf_counter()
+                nllb_model.load_model()
+                for idx, segment in enumerate(segments):
+                    seg_text = segment["text"]
+                    if language == "zh":
+                        segment["text"] = zhconv.convert(seg_text, "zh-tw")
+                    if nllb_model.nllb_lang is not None:
+                        segment["text"] = nllb_model.translation(seg_text)
+                    pbar.update(1)
+
+                nllb_model.release_vram()
+                perf_end_time = time.perf_counter()
+                print("\n\nprocess segments took {} seconds.\n\n".format(perf_end_time - perf_start_time))
+            except Exception as e:
+                # Ignore error - it's just a cleanup
+                print("Error process segments: " + str(e))
+
+        print("Max line width " + str(languageMaxLineWidth) + " for language:" + language)
         vtt = self.__get_subs(result["segments"], "vtt", languageMaxLineWidth, highlight_words=highlight_words)
         srt = self.__get_subs(result["segments"], "srt", languageMaxLineWidth, highlight_words=highlight_words)
         json_result = json.dumps(result, indent=4, ensure_ascii=False)
 
-        if language == "zh":
+        if language == "zh" or (nllb_model.nllb_lang is not None and nllb_model.nllb_lang.code == "zho_Hant"):
             vtt = zhconv.convert(vtt, "zh-tw")
             srt = zhconv.convert(srt, "zh-tw")
             text = zhconv.convert(text, "zh-tw")
@@ -541,12 +562,29 @@ def create_ui(app_config: ApplicationConfig):
         ui_description += "\n\n" + "Max audio file length: " + str(app_config.input_audio_max_duration) + " s"
 
     ui_article = "Read the [documentation here](https://gitlab.com/aadnk/whisper-webui/-/blob/main/docs/options.md)."
+    ui_article += "\n\nWhisper's Task 'translate' only implements the functionality of translating other languages into English. "
+    ui_article += "OpenAI does not guarantee translations between arbitrary languages. In such cases, you can choose to use the NLLB Model to implement the translation task. "
+    ui_article += "However, it's important to note that the NLLB Model runs slowly, and the completion time may be twice as long as usual. "
+    ui_article += "\n\nThe larger the parameters of the NLLB model, the better its performance is expected to be. "
+    ui_article += "However, it also requires higher computational resources, making it slower to operate. "
+    ui_article += "On the other hand, the version converted from ct2 (CTranslate2) requires lower resources and operates at a faster speed."
+    ui_article += "\n\nCurrently, enabling word-level timestamps cannot be used in conjunction with NLLB Model translation "
+    ui_article += "because Word Timestamps will split the source text, and after translation, it becomes a non-word-level string. "
+    ui_article += "\n\nThe 'mt5-zh-ja-en-trimmed' model is finetuned from Google's 'mt5-base' model. "
+    ui_article += "This model has a relatively good translation speed, but it only supports three languages: Chinese, Japanese, and English. "
 
     whisper_models = app_config.get_model_names()
-
-    common_inputs = lambda : [
-        gr.Dropdown(choices=whisper_models, value=app_config.default_model_name, label="Model"),
-        gr.Dropdown(choices=sorted(get_language_names()), label="Language", value=app_config.language),
+    nllb_models = app_config.get_nllb_model_names()
+    
+    common_whisper_inputs = lambda : [
+        gr.Dropdown(label="Whisper Model (for audio)", choices=whisper_models, value=app_config.default_model_name),
+        gr.Dropdown(label="Whisper Language", choices=sorted(get_language_names()), value=app_config.language),
+    ]
+    common_nllb_inputs = lambda : [
+        gr.Dropdown(label="NLLB Model (for translate)", choices=nllb_models),
+        gr.Dropdown(label="NLLB Language", choices=sorted(get_nllb_lang_names())),
+    ]
+    common_audio_inputs = lambda : [
         gr.Text(label="URL (YouTube, etc.)"),
         gr.File(label="Upload Files", file_count="multiple"),
         gr.Audio(source="microphone", type="filepath", label="Microphone Input"),
@@ -579,7 +617,13 @@ def create_ui(app_config: ApplicationConfig):
         with gr.Row():
             with gr.Column():
                 simple_submit = gr.Button("Submit", variant="primary")
-                simple_input = common_inputs() + common_vad_inputs() + common_word_timestamps_inputs()
+                with gr.Column():
+                    with gr.Row():
+                        simple_input = common_whisper_inputs()
+                    with gr.Row():
+                        simple_input += common_nllb_inputs()
+                with gr.Column():
+                    simple_input += common_audio_inputs() + common_vad_inputs() + common_word_timestamps_inputs()
             with gr.Column():
                 simple_output = common_output()
                 simple_flag = gr.Button("Flag")
@@ -602,27 +646,33 @@ def create_ui(app_config: ApplicationConfig):
         with gr.Row():
             with gr.Column():
                 full_submit = gr.Button("Submit", variant="primary")
-                full_input1 = common_inputs() + common_vad_inputs() + [
-                gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding),
-                gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window),
-                gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode")]
+                with gr.Column():
+                    with gr.Row():
+                        full_input1 = common_whisper_inputs()
+                    with gr.Row():
+                        full_input1 += common_nllb_inputs()
+                with gr.Column():
+                    full_input1 += common_audio_inputs() + common_vad_inputs() + [
+                    gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding),
+                    gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window),
+                    gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode")]
 
-                full_input2 = common_word_timestamps_inputs() + [
-                gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations),
-                gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations),
-                gr.TextArea(label="Initial Prompt"),
-                gr.Number(label="Temperature", value=app_config.temperature),
-                gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0),
-                gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0),
-                gr.Number(label="Patience - Zero temperature", value=app_config.patience),
-                gr.Number(label="Length Penalty - Any temperature", value=app_config.length_penalty),
-                gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens),
-                gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text),
-                gr.Checkbox(label="FP16", value=app_config.fp16),
-                gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback),
-                gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold),
-                gr.Number(label="Logprob threshold", value=app_config.logprob_threshold),
-                gr.Number(label="No speech threshold", value=app_config.no_speech_threshold)]
+                    full_input2 = common_word_timestamps_inputs() + [
+                    gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations),
+                    gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations),
+                    gr.TextArea(label="Initial Prompt"),
+                    gr.Number(label="Temperature", value=app_config.temperature),
+                    gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0),
+                    gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0),
+                    gr.Number(label="Patience - Zero temperature", value=app_config.patience),
+                    gr.Number(label="Length Penalty - Any temperature", value=app_config.length_penalty),
+                    gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens),
+                    gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text),
+                    gr.Checkbox(label="FP16", value=app_config.fp16),
+                    gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback),
+                    gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold),
+                    gr.Number(label="Logprob threshold", value=app_config.logprob_threshold),
+                    gr.Number(label="No speech threshold", value=app_config.no_speech_threshold)]
 
             with gr.Column():
                 full_output = common_output()
@@ -654,6 +704,7 @@ def create_ui(app_config: ApplicationConfig):
 if __name__ == '__main__':
     default_app_config = ApplicationConfig.create_default()
     whisper_models = default_app_config.get_model_names()
+    nllb_models = default_app_config.get_nllb_model_names()
 
     # Environment variable overrides
     default_whisper_implementation = os.environ.get("WHISPER_IMPLEMENTATION", default_app_config.whisper_implementation)
@@ -706,6 +757,14 @@ if __name__ == '__main__':
     args = parser.parse_args().__dict__
 
     updated_config = default_app_config.update(**args)
+
+    #updated_config.whisper_implementation = "faster-whisper"
+    #updated_config.input_audio_max_duration = -1
+    #updated_config.default_model_name = "large-v2"
+    #updated_config.output_dir = "output"
+    #updated_config.vad_max_merge_size = 90
+    #updated_config.merge_subtitle_with_sources = True
+    #updated_config.autolaunch = True
 
     if (threads := args.pop("threads")) > 0:
         torch.set_num_threads(threads)

@@ -1,5 +1,5 @@
 ---
-title: Faster Whisper Webui
+title: Faster Whisper Webui with translate
 emoji: ✨
 colorFrom: blue
 colorTo: purple

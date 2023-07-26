@@ -8,3 +8,4 @@ torchaudio
 altair
 json5
 zhconv
+sentencepiece
