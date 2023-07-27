@@ -181,9 +181,10 @@ class AbstractTranscription(ABC):
             # Calculate progress 
             progress_start_offset = merged[0]['start'] if len(merged) > 0 else 0
             progress_total_duration = sum([segment['end'] - segment['start'] for segment in merged])
+            sub_task_total = 1/len(merged)
 
             # For each time segment, run whisper
-            for segment in merged:
+            for idx, segment in enumerate(merged):
                 segment_index += 1
                 segment_start = segment['start']
                 segment_end = segment['end']
@@ -208,8 +209,10 @@ class AbstractTranscription(ABC):
 
                 perf_start_time = time.perf_counter()
 
-                scaled_progress_listener = SubTaskProgressListener(progressListener, base_task_total=progress_total_duration, 
-                                                                   sub_task_start=segment_start - progress_start_offset, sub_task_total=segment_duration) 
+                scaled_progress_listener = SubTaskProgressListener(progressListener, 
+                                               base_task_total=progressListener.sub_task_total if isinstance(progressListener, SubTaskProgressListener) else progress_total_duration, 
+                                               sub_task_start=idx*(1/len(merged)), 
+                                               sub_task_total=1/len(merged)) 
                 segment_result = whisperCallable.invoke(segment_audio, segment_index, segment_prompt, detected_language, progress_listener=scaled_progress_listener)
 
                 perf_end_time = time.perf_counter()

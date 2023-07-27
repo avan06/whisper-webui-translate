@@ -18,7 +18,7 @@ class _ProgressListenerToQueue(ProgressListener):
         self.progress_total = 0
         self.prev_progress = 0
 
-    def on_progress(self, current: Union[int, float], total: Union[int, float]):
+    def on_progress(self, current: Union[int, float], total: Union[int, float], desc: str = None):
         delta = current - self.prev_progress
         self.prev_progress = current
         self.progress_total = total
@@ -178,7 +178,7 @@ class ParallelTranscription(AbstractTranscription):
                 
                 total_progress += delta
                 if progress_listener is not None:
-                    progress_listener.on_progress(total_progress, total_duration)
+                    progress_listener.on_progress(total_progress, total_duration, desc="Transcribe parallel")
 
             results = results_async.get()
 

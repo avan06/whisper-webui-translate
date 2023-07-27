@@ -25,13 +25,13 @@ class SubTaskProgressListener(ProgressListener):
     ):
         self.base_task_listener = base_task_listener
         self.base_task_total = base_task_total
-        self.sub_task_start = sub_task_start
-        self.sub_task_total = sub_task_total
+        self.sub_task_start = base_task_total*sub_task_start
+        self.sub_task_total = base_task_total*sub_task_total
 
-    def on_progress(self, current: Union[int, float], total: Union[int, float]):
+    def on_progress(self, current: Union[int, float], total: Union[int, float], desc: str = None):
         sub_task_progress_frac = current / total
         sub_task_progress = self.sub_task_start + self.sub_task_total * sub_task_progress_frac
-        self.base_task_listener.on_progress(sub_task_progress, self.base_task_total)
+        self.base_task_listener.on_progress(sub_task_progress, self.base_task_total, desc=desc)
 
     def on_finished(self):
         self.base_task_listener.on_progress(self.sub_task_start + self.sub_task_total, self.base_task_total)

@@ -54,6 +54,9 @@ class NllbModel:
         self.nllb_lang = nllb_lang
         self.model_config = model_config
 
+        if nllb_lang is None:
+            return
+
         if os.path.isdir(model_config.url):
             self.model_path = model_config.url
         else:

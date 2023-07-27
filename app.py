@@ -156,13 +156,15 @@ class WhisperTranscriber:
                                      word_timestamps=word_timestamps, prepend_punctuations=prepend_punctuations, append_punctuations=append_punctuations, highlight_words=highlight_words,
                                      progress=progress)
 
-    def transcribe_webui(self, modelName, languageName, nllbModelName, nllbLangName, urlData, multipleFiles, microphoneData, task, 
+    def transcribe_webui(self, modelName: str, languageName: str, nllbModelName: str, nllbLangName: str, urlData: str, multipleFiles, microphoneData: str, task: str, 
                          vadOptions: VadOptions, progress: gr.Progress = None, highlight_words: bool = False, 
                          **decodeOptions: dict):
         try:
+            progress(0, desc="init audio sources")
             sources = self.__get_source(urlData, multipleFiles, microphoneData)
 
             try:
+                progress(0, desc="init whisper model")
                 whisper_lang = get_language_from_name(languageName)
                 selectedLanguage = languageName.lower() if languageName is not None and len(languageName) > 0 else None
                 selectedModel = modelName if modelName is not None else "base"
@@ -170,13 +172,15 @@ class WhisperTranscriber:
                 model = create_whisper_container(whisper_implementation=self.app_config.whisper_implementation, 
                                                  model_name=selectedModel, compute_type=self.app_config.compute_type, 
                                                  cache=self.model_cache, models=self.app_config.models)
-
+                
+                progress(0, desc="init translate model")
                 nllb_lang = get_nllb_lang_from_name(nllbLangName)
                 selectedNllbModelName = nllbModelName if nllbModelName is not None and len(nllbModelName) > 0 else "nllb-200-distilled-600M/facebook"
                 selectedNllbModel = next((modelConfig for modelConfig in self.app_config.nllb_models if modelConfig.name == selectedNllbModelName), None)
-
+                
                 nllb_model = NllbModel(model_config=selectedNllbModel, whisper_lang=whisper_lang, nllb_lang=nllb_lang) # load_model=True
-
+                
+                progress(0, desc="init transcribe")
                 # Result
                 download = []
                 zip_file_lookup = {}
@@ -186,6 +190,7 @@ class WhisperTranscriber:
                 # Write result
                 downloadDirectory = tempfile.mkdtemp()
                 source_index = 0
+                extra_tasks_count = 1 if nllb_lang is not None else 0
 
                 outputDirectory = self.output_dir if self.output_dir is not None else downloadDirectory
 
@@ -195,9 +200,10 @@ class WhisperTranscriber:
 
                 # A listener that will report progress to Gradio
                 root_progress_listener = self._create_progress_listener(progress)
+                sub_task_total = 1/(len(sources)+extra_tasks_count*len(sources))
 
                 # Execute whisper
-                for source in sources:
+                for idx, source in enumerate(sources):
                     source_prefix = ""
                     source_audio_duration = source.get_audio_duration()
 
@@ -208,9 +214,9 @@ class WhisperTranscriber:
                         print("Transcribing ", source.source_path)
 
                     scaled_progress_listener = SubTaskProgressListener(root_progress_listener, 
-                                                   base_task_total=total_duration,
-                                                   sub_task_start=current_progress,
-                                                   sub_task_total=source_audio_duration)
+                                                   base_task_total=1,
+                                                   sub_task_start=idx*1/len(sources),
+                                                   sub_task_total=sub_task_total)
 
                     # Transcribe
                     result = self.transcribe_file(model, source.source_path, selectedLanguage, task, vadOptions, scaled_progress_listener, **decodeOptions)
@@ -219,7 +225,7 @@ class WhisperTranscriber:
                     # Update progress
                     current_progress += source_audio_duration
 
-                    source_download, source_text, source_vtt = self.write_result(result, nllb_model, filePrefix, outputDirectory, highlight_words)
+                    source_download, source_text, source_vtt = self.write_result(result, nllb_model, filePrefix, outputDirectory, highlight_words, scaled_progress_listener)
 
                     if len(sources) > 1:
                         # Add new line separators
@@ -377,9 +383,9 @@ class WhisperTranscriber:
             def __init__(self, progress: gr.Progress):
                 self.progress = progress
 
-            def on_progress(self, current: Union[int, float], total: Union[int, float]):
+            def on_progress(self, current: Union[int, float], total: Union[int, float], desc: str = None):
                 # From 0 to 1
-                self.progress(current / total)
+                self.progress(current / total, desc=desc)
 
             def on_finished(self):
                 self.progress(1)
@@ -435,7 +441,7 @@ class WhisperTranscriber:
 
         return config
 
-    def write_result(self, result: dict, nllb_model: NllbModel, source_name: str, output_dir: str, highlight_words: bool = False):
+    def write_result(self, result: dict, nllb_model: NllbModel, source_name: str, output_dir: str, highlight_words: bool = False, progressListener: ProgressListener = None):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -446,6 +452,10 @@ class WhisperTranscriber:
 
         if nllb_model.nllb_lang is not None:
             try:
+                segments_progress_listener = SubTaskProgressListener(progressListener, 
+                                               base_task_total=progressListener.sub_task_total, 
+                                               sub_task_start=1, 
+                                               sub_task_total=1)
                 pbar = tqdm.tqdm(total=len(segments))
                 perf_start_time = time.perf_counter()
                 nllb_model.load_model()
@@ -456,9 +466,14 @@ class WhisperTranscriber:
                     if nllb_model.nllb_lang is not None:
                         segment["text"] = nllb_model.translation(seg_text)
                     pbar.update(1)
+                    segments_progress_listener.on_progress(idx+1, len(segments), "Process segments")
 
                 nllb_model.release_vram()
                 perf_end_time = time.perf_counter()
+                # Call the finished callback
+                if segments_progress_listener is not None:
+                    segments_progress_listener.on_finished()
+
                 print("\n\nprocess segments took {} seconds.\n\n".format(perf_end_time - perf_start_time))
             except Exception as e:
                 # Ignore error - it's just a cleanup
