@@ -387,8 +387,8 @@ class WhisperTranscriber:
                 # From 0 to 1
                 self.progress(current / total, desc=desc)
 
-            def on_finished(self):
-                self.progress(1)
+            def on_finished(self, desc: str = None):
+                self.progress(1, desc=desc)
 
         return ForwardingProgressListener(progress)
 
@@ -466,13 +466,13 @@ class WhisperTranscriber:
                     if nllb_model.nllb_lang is not None:
                         segment["text"] = nllb_model.translation(seg_text)
                     pbar.update(1)
-                    segments_progress_listener.on_progress(idx+1, len(segments), "Process segments")
+                    segments_progress_listener.on_progress(idx+1, len(segments), desc=f"Process segments: {idx}/{len(segments)}")
 
                 nllb_model.release_vram()
                 perf_end_time = time.perf_counter()
                 # Call the finished callback
                 if segments_progress_listener is not None:
-                    segments_progress_listener.on_finished()
+                    segments_progress_listener.on_finished(desc=f"Process segments: {idx}/{len(segments)}")
 
                 print("\n\nprocess segments took {} seconds.\n\n".format(perf_end_time - perf_start_time))
             except Exception as e:

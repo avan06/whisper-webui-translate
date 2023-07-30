@@ -170,6 +170,7 @@ class ParallelTranscription(AbstractTranscription):
             results_async = pool.starmap_async(self.transcribe, parameters)
             total_progress = 0
 
+            idx=0
             while not results_async.ready():
                 try:
                     delta = progress_queue.get(timeout=5)  # Set a timeout of 5 seconds
@@ -178,13 +179,14 @@ class ParallelTranscription(AbstractTranscription):
                 
                 total_progress += delta
                 if progress_listener is not None:
-                    progress_listener.on_progress(total_progress, total_duration, desc="Transcribe parallel")
+                    idx+=1
+                    progress_listener.on_progress(total_progress, total_duration, desc=f"Transcribe parallel: {idx}, {total_progress:.2f}/{total_duration}")
 
             results = results_async.get()
 
             # Call the finished callback
             if progress_listener is not None:
-                progress_listener.on_finished()
+                progress_listener.on_finished(desc=f"Transcribe parallel: {idx}, {total_progress:.2f}/{total_duration}.")
 
             for result in results:
                 # Merge the results
