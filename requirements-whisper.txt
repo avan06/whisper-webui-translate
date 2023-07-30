@@ -2,7 +2,7 @@
 git+https://github.com/openai/whisper.git
 transformers
 ffmpeg-python==0.2.0
-gradio==3.36.0
+gradio==3.39.0
 yt-dlp
 torchaudio
 altair

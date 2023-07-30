@@ -145,12 +145,12 @@ class FasterWhisperCallback(AbstractWhisperCallback):
         )
 
         segments = []
-
+        
         for segment in segments_generator:
             segments.append(segment)
 
             if progress_listener is not None:
-                progress_listener.on_progress(segment.end, info.duration, "Transcribe")
+                progress_listener.on_progress(segment.end, info.duration, desc=f"Transcribe: {segment_index}")
             if verbose:
                 print("[{}->{}] {}".format(format_timestamp(segment.start, True), format_timestamp(segment.end, True),
                                           segment.text))
@@ -187,7 +187,7 @@ class FasterWhisperCallback(AbstractWhisperCallback):
             self.prompt_strategy.on_segment_finished(segment_index, prompt, detected_language, result)
 
         if progress_listener is not None:
-            progress_listener.on_finished()
+            progress_listener.on_finished(desc=f"Transcribe: {segment_index}.")
         return result
 
     def _split_suppress_tokens(self, suppress_tokens: Union[str, List[int]]):
