@@ -32,7 +32,8 @@ def _perform_download(url: str, maxDuration: int = None, outputTemplate: str = N
         "format": "bestaudio/best" if onlyAudio else "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best",
         'paths': {
             'home': destinationDirectory
-        }
+        },
+        "ignoreerrors": True
     }
     if (playlistItems):
         ydl_opts['playlist_items'] = playlistItems
