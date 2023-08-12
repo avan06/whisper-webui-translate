@@ -180,13 +180,13 @@ class ParallelTranscription(AbstractTranscription):
                 total_progress += delta
                 if progress_listener is not None:
                     idx+=1
-                    progress_listener.on_progress(total_progress, total_duration, desc=f"Transcribe parallel: {idx}, {total_progress:.2f}/{total_duration}")
+                    progress_listener.on_progress(total_progress, total_duration, desc=f"Transcribe parallel: {idx}, {total_progress:.2f}/{total_duration:.2f}")
 
             results = results_async.get()
 
             # Call the finished callback
             if progress_listener is not None:
-                progress_listener.on_finished(desc=f"Transcribe parallel: {idx}, {total_progress:.2f}/{total_duration}.")
+                progress_listener.on_finished(desc=f"Transcribe parallel: {idx}, {total_progress:.2f}/{total_duration:.2f}.")
 
             for result in results:
                 # Merge the results

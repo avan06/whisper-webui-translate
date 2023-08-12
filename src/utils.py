@@ -1,4 +1,4 @@
-import textwrap
+﻿import textwrap
 import unicodedata
 import re
 
@@ -211,7 +211,7 @@ def process_text(text: str, maxLineWidth=None):
     lines = textwrap.wrap(text, width=maxLineWidth, tabsize=4)
     return '\n'.join(lines)
 
-def slugify(value, allow_unicode=False):
+def slugify(value, allow_unicode=False, is_lower=False):
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py
     Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
@@ -224,7 +224,9 @@ def slugify(value, allow_unicode=False):
         value = unicodedata.normalize('NFKC', value)
     else:
         value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-    value = re.sub(r'[^\w\s-]', '', value.lower())
+    if is_lower:
+        value = value.lower()
+    value = re.sub(r'[^\w\s-]', '', value.replace("/","_").replace("⧸","_"))
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def download_file(url: str, destination: str):

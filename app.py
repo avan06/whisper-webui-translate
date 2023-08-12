@@ -220,12 +220,41 @@ class WhisperTranscriber:
 
                     # Transcribe
                     result = self.transcribe_file(model, source.source_path, selectedLanguage, task, vadOptions, scaled_progress_listener, **decodeOptions)
-                    filePrefix = slugify(source_prefix + source.get_short_name(), allow_unicode=True)
+                    short_name, suffix = source.get_short_name_suffix(max_length=self.app_config.input_max_file_name_length)
+                    filePrefix = slugify(source_prefix + short_name, allow_unicode=True)
 
                     # Update progress
                     current_progress += source_audio_duration
 
-                    source_download, source_text, source_vtt = self.write_result(result, nllb_model, filePrefix, outputDirectory, highlight_words, scaled_progress_listener)
+                    source_download, source_text, source_vtt = self.write_result(result, nllb_model, filePrefix + suffix.replace(".", "_"), outputDirectory, highlight_words, scaled_progress_listener)
+
+                    if self.app_config.merge_subtitle_with_sources and self.app_config.output_dir is not None:
+                        print("\nmerge subtitle(srt) with source file [" + source.source_name + "]\n")
+                        outRsult = ""
+                        try:
+                            srt_path = source_download[0]
+                            save_path = os.path.join(self.app_config.output_dir, filePrefix)
+                            # save_without_ext, ext = os.path.splitext(save_path)
+                            source_lang = "." + whisper_lang.code if whisper_lang is not None else ""
+                            translate_lang = "." + nllb_lang.code if nllb_lang is not None else ""
+                            output_with_srt = save_path + source_lang + translate_lang + suffix
+        
+                            #ffmpeg -i "input.mp4" -i "input.srt" -c copy -c:s mov_text output.mp4
+                            input_file = ffmpeg.input(source.source_path)
+                            input_srt = ffmpeg.input(srt_path)
+                            out = ffmpeg.output(input_file, input_srt, output_with_srt, vcodec='copy', acodec='copy', scodec='mov_text')
+                            outRsult = out.run(overwrite_output=True)
+                        except Exception as e:
+                            # Ignore error - it's just a cleanup
+                            print("Error merge subtitle with source file: \n" + source.source_path + ", \n" + str(e), outRsult)
+                    elif self.app_config.save_downloaded_files and self.app_config.output_dir is not None and urlData:
+                        print("Saving downloaded file [" + source.source_name + "]")
+                        try:
+                            save_path = os.path.join(self.app_config.output_dir, filePrefix)
+                            shutil.copy(source.source_path, save_path + suffix)
+                        except Exception as e:
+                            # Ignore error - it's just a cleanup
+                            print("Error saving downloaded file: \n" + source.source_path + ", \n" + str(e))
 
                     if len(sources) > 1:
                         # Add new line separators
@@ -272,33 +301,6 @@ class WhisperTranscriber:
                 # Cleanup source
                 if self.deleteUploadedFiles:
                     for source in sources:
-                        if self.app_config.merge_subtitle_with_sources and self.app_config.output_dir is not None and len(source_download) > 0:
-                            print("\nmerge subtitle(srt) with source file [" + source.source_name + "]\n")
-                            outRsult = ""
-                            try:
-                                srt_path = source_download[0]
-                                save_path = os.path.join(self.app_config.output_dir, source.source_name)
-                                save_without_ext, ext = os.path.splitext(save_path)
-                                source_lang = "." + whisper_lang.code if whisper_lang is not None else ""
-                                translate_lang = "." + nllb_lang.code if nllb_lang is not None else ""
-                                output_with_srt = save_without_ext + source_lang + translate_lang + ext
-                                
-                                #ffmpeg -i "input.mp4" -i "input.srt" -c copy -c:s mov_text output.mp4
-                                input_file = ffmpeg.input(source.source_path)
-                                input_srt = ffmpeg.input(srt_path)
-                                out = ffmpeg.output(input_file, input_srt, output_with_srt, vcodec='copy', acodec='copy', scodec='mov_text')
-                                outRsult = out.run(overwrite_output=True)
-                            except Exception as e:
-                                # Ignore error - it's just a cleanup
-                                print("Error merge subtitle with source file: \n" + source.source_path + ", \n" + str(e), outRsult)
-                        elif self.app_config.save_downloaded_files and self.app_config.output_dir is not None and urlData:
-                            print("Saving downloaded file [" + source.source_name + "]")
-                            try:
-                                shutil.copy(source.source_path, self.app_config.output_dir)
-                            except Exception as e:
-                                # Ignore error - it's just a cleanup
-                                print("Error saving downloaded file: \n" + source.source_path + ", \n" + str(e))
-                            
                         print("Deleting temporary source file: " + source.source_path)
                         try:
                             os.remove(source.source_path)
@@ -765,6 +767,8 @@ if __name__ == '__main__':
                         help="True to move downloaded files to outputs directory. This argument will take effect only after output_dir is set.")
     parser.add_argument("--merge_subtitle_with_sources", action='store_true', \
                         help="True to merge subtitle(srt) with sources and move the sources files to the outputs directory. This argument will take effect only after output_dir is set.")
+    parser.add_argument("--input_max_file_name_length", type=int, default=100, \
+                        help="Maximum length of a file name.")
     parser.add_argument("--autolaunch", action='store_true', \
                         help="open the webui URL in the system's default browser upon launch")
                         

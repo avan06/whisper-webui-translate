@@ -32,10 +32,15 @@ class AudioSource:
         return self.source_name
 
     def get_short_name(self, max_length: int = MAX_FILE_PREFIX_LENGTH):
-        file_path = pathlib.Path(self.source_name)
-        short_name = file_path.stem[:max_length] + file_path.suffix
+        short_name, suffix = self.get_short_name_suffix(max_length=max_length)
 
-        return short_name
+        return short_name + suffix
+    
+    def get_short_name_suffix(self, max_length: int = MAX_FILE_PREFIX_LENGTH):
+        file_path = pathlib.Path(self.source_name)
+        short_name = file_path.stem[:max_length]
+
+        return short_name, file_path.suffix
 
     def __str__(self) -> str:
         return self.source_path
