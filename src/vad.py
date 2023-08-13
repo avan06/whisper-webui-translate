@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import Counter, deque
+import os
 import time
 
 from typing import Any, Deque, Iterator, List, Dict
@@ -449,7 +450,22 @@ class VadSileroTranscription(AbstractTranscription):
             print("Created Silerio model")
 
     def _create_model(self):
-        model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad')
+        repo_owner = "snakers4"
+        repo_name = "silero-vad"
+        ref = "master"
+
+        try:
+            model, utils = torch.hub.load(repo_or_dir=f'{repo_owner}/{repo_name}', model='silero_vad')
+        except Exception as e:
+            hub_dir = torch.hub.get_dir()
+            owner_name_branch = '_'.join([repo_owner, repo_name, ref])
+            repo_dir = os.path.join(hub_dir, owner_name_branch)
+            if os.path.exists(repo_dir):
+                print(f"vad.py: torch.hub.load({repo_owner}/{repo_name}) Exception: {str(e)}, Using cache found in {repo_dir}\n")
+                model, utils = torch.hub.load(repo_or_dir=repo_dir, model='silero_vad', source="local")
+            else:
+                raise
+
         
         # Silero does not benefit from multi-threading
         torch.set_num_threads(1) # JIT
