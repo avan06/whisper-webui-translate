@@ -10,3 +10,9 @@ torchaudio
 more_itertools
 zhconv
 sentencepiece
+
+# Needed by diarization
+intervaltree
+srt
+torch
+https://github.com/pyannote/pyannote-audio/archive/refs/heads/develop.zip
