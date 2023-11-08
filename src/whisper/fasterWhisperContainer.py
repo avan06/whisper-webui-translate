@@ -43,7 +43,7 @@ class FasterWhisperContainer(AbstractWhisperContainer):
         model_url = model_config.url
 
         if model_config.type == "whisper":
-            if model_url not in ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2"]:
+            if model_url not in ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"]:
                 raise Exception("FasterWhisperContainer does not yet support Whisper models. Use ct2-transformers-converter to convert the model to a faster-whisper model.")
             if model_url == "large":
                 # large is an alias for large-v1
@@ -55,6 +55,10 @@ class FasterWhisperContainer(AbstractWhisperContainer):
             device = "auto"
 
         model = WhisperModel(model_url, device=device, compute_type=self.compute_type)
+        if "large-v3" in model_url:
+            # Working with Whisper-large-v3
+            # https://github.com/guillaumekln/faster-whisper/issues/547#issuecomment-1797962599
+            model.feature_extractor.mel_filters = model.feature_extractor.get_mel_filters(model.feature_extractor.sampling_rate, model.feature_extractor.n_fft, n_mels=128)
         return model
 
     def create_callback(self, language: str = None, task: str = None, 
