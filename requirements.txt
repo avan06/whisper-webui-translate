@@ -1,8 +1,8 @@
 ﻿git+https://github.com/huggingface/transformers
-ctranslate2>=3.16.0
+ctranslate2>=3.21.0
 faster-whisper
 ffmpeg-python==0.2.0
-gradio==3.39.0
+gradio==3.50.2
 yt-dlp
 json5
 torch
