@@ -1,7 +1,7 @@
 @echo off
 
 :: The source of the webui.bat file is stable-diffusion-webui
-set COMMANDLINE_ARGS=--whisper_implementation faster-whisper --input_audio_max_duration -1 --default_model_name large-v2 --auto_parallel True --output_dir output --vad_max_merge_size 90 --merge_subtitle_with_sources --autolaunch
+set COMMANDLINE_ARGS=--whisper_implementation faster-whisper --input_audio_max_duration -1 --default_model_name large-v2 --auto_parallel True --output_dir output --vad_max_merge_size 90 --save_downloaded_files --autolaunch
 
 if not defined PYTHON (set PYTHON=python)
 if not defined VENV_DIR (set "VENV_DIR=%~dp0%venv")

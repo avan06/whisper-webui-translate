@@ -20,9 +20,7 @@ from src.diarization.diarizationContainer import DiarizationContainer
 from src.hooks.progressListener import ProgressListener
 from src.hooks.subTaskProgressListener import SubTaskProgressListener
 from src.hooks.whisperProgressHook import create_progress_listener_handle
-from src.languages import _TO_LANGUAGE_CODE
-from src.languages import get_language_names
-from src.languages import get_language_from_name
+from src.languages import _TO_LANGUAGE_CODE, get_language_names, get_language_from_name, get_language_from_code
 from src.modelCache import ModelCache
 from src.prompts.jsonPromptStrategy import JsonPromptStrategy
 from src.prompts.prependPromptStrategy import PrependPromptStrategy
@@ -269,6 +267,10 @@ class WhisperTranscriber:
 
                     # Transcribe
                     result = self.transcribe_file(model, source.source_path, selectedLanguage, task, vadOptions, scaled_progress_listener, **decodeOptions)
+                    if whisper_lang is None and result["language"] is not None and len(result["language"]) > 0:
+                        whisper_lang = get_language_from_code(result["language"])
+                        nllb_model.whisper_lang = whisper_lang
+                        
                     short_name, suffix = source.get_short_name_suffix(max_length=self.app_config.input_max_file_name_length)
                     filePrefix = slugify(source_prefix + short_name, allow_unicode=True)
 
@@ -700,8 +702,8 @@ def create_ui(app_config: ApplicationConfig):
     
     common_output = lambda : [
         gr.File(label="Download"),
-        gr.Text(label="Transcription"),
-        gr.Text(label="Segments"),
+        gr.Text(label="Transcription", autoscroll=False),
+        gr.Text(label="Segments", autoscroll=False),
     ]
 
     is_queue_mode = app_config.queue_concurrency_count is not None and app_config.queue_concurrency_count > 0
@@ -863,13 +865,15 @@ if __name__ == '__main__':
 
     updated_config = default_app_config.update(**args)
 
-    #updated_config.whisper_implementation = "faster-whisper"
-    #updated_config.input_audio_max_duration = -1
-    #updated_config.default_model_name = "large-v2"
-    #updated_config.output_dir = "output"
-    #updated_config.vad_max_merge_size = 90
-    #updated_config.merge_subtitle_with_sources = True
-    #updated_config.autolaunch = True
+    # updated_config.whisper_implementation = "faster-whisper"
+    # updated_config.input_audio_max_duration = -1
+    # updated_config.default_model_name = "large-v2"
+    # updated_config.output_dir = "output"
+    # updated_config.vad_max_merge_size = 90
+    # updated_config.merge_subtitle_with_sources = False
+    # updated_config.autolaunch = True
+    # updated_config.auto_parallel = False
+    # updated_config.save_downloaded_files = True
 
     if (threads := args.pop("threads")) > 0:
         torch.set_num_threads(threads)
