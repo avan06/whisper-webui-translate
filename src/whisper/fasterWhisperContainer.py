@@ -55,10 +55,6 @@ class FasterWhisperContainer(AbstractWhisperContainer):
             device = "auto"
 
         model = WhisperModel(model_url, device=device, compute_type=self.compute_type)
-        if "large-v3" in model_url:
-            # Working with Whisper-large-v3
-            # https://github.com/guillaumekln/faster-whisper/issues/547#issuecomment-1797962599
-            model.feature_extractor.mel_filters = model.feature_extractor.get_mel_filters(model.feature_extractor.sampling_rate, model.feature_extractor.n_fft, n_mels=128)
         return model
 
     def create_callback(self, language: str = None, task: str = None, 

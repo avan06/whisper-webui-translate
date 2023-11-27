@@ -1,6 +1,6 @@
 ﻿git+https://github.com/huggingface/transformers
 ctranslate2>=3.21.0
-faster-whisper
+faster-whisper>=0.10.0
 ffmpeg-python==0.2.0
 gradio==3.50.2
 yt-dlp

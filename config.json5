@@ -28,8 +28,7 @@
         },
         {
             "name": "large-v3",
-            "url": "avans06/faster-whisper-large-v3",
-            "type": "huggingface"
+            "url": "large-v3"
         },
         // Uncomment to add custom Japanese models
         //{

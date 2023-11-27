@@ -137,7 +137,7 @@ class WhisperTranscriber:
         vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, self.app_config.vad_padding, self.app_config.vad_prompt_window, self.app_config.vad_initial_prompt_mode)
 
         if diarization:
-            if diarization_speakers < 1:
+            if diarization_speakers is not None and diarization_speakers < 1:
                 self.set_diarization(auth_token=self.app_config.auth_token, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers)
             else:
                 self.set_diarization(auth_token=self.app_config.auth_token, num_speakers=diarization_speakers, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers)
@@ -189,7 +189,7 @@ class WhisperTranscriber:
 
         # Set diarization
         if diarization:
-            if diarization_speakers < 1:
+            if diarization_speakers is not None and diarization_speakers < 1:
                 self.set_diarization(auth_token=self.app_config.auth_token, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers)
             else:
                 self.set_diarization(auth_token=self.app_config.auth_token, num_speakers=diarization_speakers, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers)
@@ -209,7 +209,8 @@ class WhisperTranscriber:
         try:
             progress(0, desc="init audio sources")
             sources = self.__get_source(urlData, multipleFiles, microphoneData)
-
+            if (len(sources) == 0):
+                raise Exception("init audio sources failed...")
             try:
                 progress(0, desc="init whisper model")
                 whisper_lang = get_language_from_name(languageName)
@@ -361,6 +362,11 @@ class WhisperTranscriber:
         
         except ExceededMaximumDuration as e:
             return [], ("[ERROR]: Maximum remote video length is " + str(e.maxDuration) + "s, file was " + str(e.videoDuration) + "s"), "[ERROR]"
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return [], ("Error occurred during transcribe: " + str(e)), ""
+        
 
     def transcribe_file(self, model: AbstractWhisperContainer, audio_path: str, language: str, task: str = None, 
                         vadOptions: VadOptions = VadOptions(), 
