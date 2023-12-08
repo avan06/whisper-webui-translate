@@ -768,8 +768,12 @@ def create_ui(app_config: ApplicationConfig):
     optionsMd: str = None
     readmeMd: str = None
     try:
-        with open("docs\options.md", "r", encoding="utf-8") as optionsFile:
+        optionsPath = pathlib.Path("docs/options.md")
+        with open(optionsPath, "r", encoding="utf-8") as optionsFile:
             optionsMd = optionsFile.read()
+    except Exception as e:
+        print("Error occurred during read options.md file: ", str(e))
+    try:
         with open("README.md", "r", encoding="utf-8") as readmeFile:
             readmeMd = readmeFile.read()
     except Exception as e:
