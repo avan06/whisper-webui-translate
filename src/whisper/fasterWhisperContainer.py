@@ -4,7 +4,6 @@ from typing import List, Union
 from faster_whisper import WhisperModel, download_model
 from src.config import ModelConfig, VadInitialPromptMode
 from src.hooks.progressListener import ProgressListener
-from src.languages import get_language_from_name
 from src.modelCache import ModelCache
 from src.prompts.abstractPromptStrategy import AbstractPromptStrategy
 from src.whisper.abstractWhisperContainer import AbstractWhisperCallback, AbstractWhisperContainer
@@ -57,7 +56,7 @@ class FasterWhisperContainer(AbstractWhisperContainer):
         model = WhisperModel(model_url, device=device, compute_type=self.compute_type)
         return model
 
-    def create_callback(self, language: str = None, task: str = None, 
+    def create_callback(self, languageCode: str = None, task: str = None, 
                         prompt_strategy: AbstractPromptStrategy = None, 
                         **decodeOptions: dict) -> AbstractWhisperCallback:
         """
@@ -65,8 +64,8 @@ class FasterWhisperContainer(AbstractWhisperContainer):
 
         Parameters
         ----------
-        language: str
-            The target language of the transcription. If not specified, the language will be inferred from the audio content.
+        languageCode: str
+            The target language code of the transcription. If not specified, the language will be inferred from the audio content.
         task: str
             The task - either translate or transcribe.
         prompt_strategy: AbstractPromptStrategy
@@ -78,14 +77,14 @@ class FasterWhisperContainer(AbstractWhisperContainer):
         -------
         A WhisperCallback object.
         """
-        return FasterWhisperCallback(self, language=language, task=task, prompt_strategy=prompt_strategy, **decodeOptions)
+        return FasterWhisperCallback(self, languageCode=languageCode, task=task, prompt_strategy=prompt_strategy, **decodeOptions)
 
 class FasterWhisperCallback(AbstractWhisperCallback):
-    def __init__(self, model_container: FasterWhisperContainer, language: str = None, task: str = None, 
+    def __init__(self, model_container: FasterWhisperContainer, languageCode: str = None, task: str = None, 
                  prompt_strategy: AbstractPromptStrategy = None, 
                  **decodeOptions: dict):
         self.model_container = model_container
-        self.language = language
+        self.languageCode = languageCode
         self.task = task
         self.prompt_strategy = prompt_strategy
         self.decodeOptions = decodeOptions
@@ -108,7 +107,6 @@ class FasterWhisperCallback(AbstractWhisperCallback):
             A callback to receive progress updates.
         """
         model: WhisperModel = self.model_container.get_model()
-        language_code = self._lookup_language_code(self.language) if self.language else None
 
         # Copy decode options and remove options that are not supported by faster-whisper
         decodeOptions = self.decodeOptions.copy()
@@ -139,7 +137,7 @@ class FasterWhisperCallback(AbstractWhisperCallback):
                            if self.prompt_strategy else prompt
 
         segments_generator, info = model.transcribe(audio, \
-            language=language_code if language_code else detected_language, task=self.task, \
+            language=self.languageCode if self.languageCode else detected_language, task=self.task, \
             initial_prompt=initial_prompt, \
             **decodeOptions
         )
@@ -197,11 +195,3 @@ class FasterWhisperCallback(AbstractWhisperCallback):
             return suppress_tokens
 
         return [int(token) for token in suppress_tokens.split(",")]
-
-    def _lookup_language_code(self, language: str):
-        language = get_language_from_name(language)
-
-        if language is None:
-            raise ValueError("Invalid language: " + language)
-        
-        return language.code

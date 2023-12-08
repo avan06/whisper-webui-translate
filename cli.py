@@ -10,7 +10,7 @@ from app import VadOptions, WhisperTranscriber
 from src.config import VAD_INITIAL_PROMPT_MODE_VALUES, ApplicationConfig, VadInitialPromptMode
 from src.diarization.diarization import Diarization
 from src.download import download_url
-from src.languages import get_language_names
+from src.translation.translationLangs import get_lang_whisper_names # from src.languages import get_language_names
 
 from src.utils import optional_float, optional_int, str2bool
 from src.whisper.whisperFactory import create_whisper_container
@@ -43,7 +43,7 @@ def cli():
                         
     parser.add_argument("--task", type=str, default=app_config.task, choices=["transcribe", "translate"], \
                         help="whether to perform X->X speech recognition ('transcribe') or X->English translation ('translate')")
-    parser.add_argument("--language", type=str, default=app_config.language, choices=sorted(get_language_names()), \
+    parser.add_argument("--language", type=str, default=app_config.language, choices=sorted(get_lang_whisper_names()), \
                         help="language spoken in the audio, specify None to perform language detection")
 
     parser.add_argument("--vad", type=str, default=app_config.default_vad, choices=["none", "silero-vad", "silero-vad-skip-gaps", "silero-vad-expand-into-gaps", "periodic-vad"], \

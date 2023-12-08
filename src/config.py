@@ -1,16 +1,11 @@
 from enum import Enum
-import urllib
 
 import os
-from typing import List
-from urllib.parse import urlparse
-import json5
-import torch
+from typing import List, Dict, Literal
 
-from tqdm import tqdm
 
 class ModelConfig:
-    def __init__(self, name: str, url: str, path: str = None, type: str = "whisper"):
+    def __init__(self, name: str, url: str, path: str = None, type: str = "whisper", tokenizer_url: str = None):
         """
         Initialize a model configuration.
 
@@ -23,6 +18,7 @@ class ModelConfig:
         self.url = url
         self.path = path
         self.type = type
+        self.tokenizer_url = tokenizer_url
 
 VAD_INITIAL_PROMPT_MODE_VALUES=["prepend_all_segments", "prepend_first_segment", "json_prompt_mode"]
 
@@ -33,7 +29,7 @@ class VadInitialPromptMode(Enum):
 
     @staticmethod
     def from_string(s: str):
-        normalized = s.lower() if s is not None else None
+        normalized = s.lower() if s is not None and len(s) > 0 else None
 
         if normalized == "prepend_all_segments":
             return VadInitialPromptMode.PREPEND_ALL_SEGMENTS
@@ -47,11 +43,11 @@ class VadInitialPromptMode(Enum):
             return None
 
 class ApplicationConfig:
-    def __init__(self, models: List[ModelConfig] = [], nllb_models: List[ModelConfig] = [], input_audio_max_duration: int = 600, 
-                 share: bool = False, server_name: str = None, server_port: int = 7860, 
+    def __init__(self, models: Dict[Literal["whisper", "m2m100", "nllb", "mt5"], List[ModelConfig]],
+                 input_audio_max_duration: int = 600, share: bool = False, server_name: str = None, server_port: int = 7860, 
                  queue_concurrency_count: int = 1, delete_uploaded_files: bool = True,
-                 whisper_implementation: str = "whisper",
-                 default_model_name: str = "medium", default_nllb_model_name: str = "distilled-600M", default_vad: str = "silero-vad", 
+                 whisper_implementation: str = "whisper", default_model_name: str = "medium", 
+                 default_nllb_model_name: str = "distilled-600M", default_vad: str = "silero-vad", 
                  vad_parallel_devices: str = "", vad_cpu_cores: int = 1, vad_process_timeout: int = 1800, 
                  auto_parallel: bool = False, output_dir: str = None,
                  model_dir: str = None, device: str = None, 
@@ -66,6 +62,7 @@ class ApplicationConfig:
                  compute_type: str = "float16", 
                  temperature_increment_on_fallback: float = 0.2, compression_ratio_threshold: float = 2.4,
                  logprob_threshold: float = -1.0, no_speech_threshold: float = 0.6,
+                 repetition_penalty: float = 1.0, no_repeat_ngram_size: int = 0,
                  # Word timestamp settings
                  word_timestamps: bool = False, prepend_punctuations: str = "\"\'“¿([{-",
                  append_punctuations: str = "\"\'.。,，!！?？:：”)]}、", 
@@ -73,10 +70,14 @@ class ApplicationConfig:
                  # Diarization
                  auth_token: str = None, diarization: bool = False, diarization_speakers: int = 2,
                  diarization_min_speakers: int = 1, diarization_max_speakers: int = 5,
-                 diarization_process_timeout: int = 60):
+                 diarization_process_timeout: int = 60,
+                 # Translation
+                 translation_batch_size: int = 2,
+                 translation_no_repeat_ngram_size: int = 3,
+                 translation_num_beams: int = 2,
+                 ):
         
         self.models = models
-        self.nllb_models = nllb_models
         
         # WebUI settings
         self.input_audio_max_duration = input_audio_max_duration
@@ -120,6 +121,8 @@ class ApplicationConfig:
         self.compression_ratio_threshold = compression_ratio_threshold
         self.logprob_threshold = logprob_threshold
         self.no_speech_threshold = no_speech_threshold
+        self.repetition_penalty = repetition_penalty
+        self.no_repeat_ngram_size = no_repeat_ngram_size
         
         # Word timestamp settings
         self.word_timestamps = word_timestamps
@@ -134,12 +137,13 @@ class ApplicationConfig:
         self.diarization_min_speakers = diarization_min_speakers
         self.diarization_max_speakers = diarization_max_speakers
         self.diarization_process_timeout = diarization_process_timeout
+        # Translation
+        self.translation_batch_size = translation_batch_size
+        self.translation_no_repeat_ngram_size = translation_no_repeat_ngram_size
+        self.translation_num_beams = translation_num_beams
 
-    def get_model_names(self):
-        return [ x.name for x in self.models ]
-
-    def get_nllb_model_names(self):
-        return [ x.name for x in self.nllb_models ]
+    def get_model_names(self, name: str):
+        return [ x.name for x in self.models[name] ]
 
     def update(self, **new_values):
         result = ApplicationConfig(**self.__dict__)
@@ -165,9 +169,9 @@ class ApplicationConfig:
             # Load using json5
             data = json5.load(f)
             data_models = data.pop("models", [])
-            data_nllb_models = data.pop("nllb_models", [])
-            
-            models = [ ModelConfig(**x) for x in data_models ]
-            nllb_models = [ ModelConfig(**x) for x in data_nllb_models ]
+            models: Dict[Literal["whisper", "m2m100", "nllb", "mt5"], List[ModelConfig]] = {
+                key: [ModelConfig(**item) for item in value]
+                for key, value in data_models.items()
+            }
 
-            return ApplicationConfig(models, nllb_models, **data)
+            return ApplicationConfig(models, **data)

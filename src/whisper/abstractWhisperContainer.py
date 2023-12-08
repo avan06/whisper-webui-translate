@@ -71,7 +71,7 @@ class AbstractWhisperContainer:
         pass
 
     @abc.abstractmethod
-    def create_callback(self, language: str = None, task: str = None, 
+    def create_callback(self, languageCode: str = None, task: str = None, 
                         prompt_strategy: AbstractPromptStrategy = None, 
                         **decodeOptions: dict) -> AbstractWhisperCallback:
         """
@@ -79,8 +79,8 @@ class AbstractWhisperContainer:
 
         Parameters
         ----------
-        language: str
-            The target language of the transcription. If not specified, the language will be inferred from the audio content.
+        languageCode: str
+            The target language code of the transcription. If not specified, the language will be inferred from the audio content.
         task: str
             The task - either translate or transcribe.
         prompt_strategy: AbstractPromptStrategy

@@ -70,7 +70,7 @@ class WhisperContainer(AbstractWhisperContainer):
 
         return whisper.load_model(model_path, device=self.device, download_root=self.download_root)
 
-    def create_callback(self, language: str = None, task: str = None, 
+    def create_callback(self, languageCode: str = None, task: str = None, 
                         prompt_strategy: AbstractPromptStrategy = None,
                         **decodeOptions: dict) -> AbstractWhisperCallback:
         """
@@ -78,8 +78,8 @@ class WhisperContainer(AbstractWhisperContainer):
 
         Parameters
         ----------
-        language: str
-            The target language of the transcription. If not specified, the language will be inferred from the audio content.
+        languageCode: str
+            The target language code of the transcription. If not specified, the language will be inferred from the audio content.
         task: str
             The task - either translate or transcribe.
         prompt_strategy: AbstractPromptStrategy
@@ -91,7 +91,7 @@ class WhisperContainer(AbstractWhisperContainer):
         -------
         A WhisperCallback object.
         """
-        return WhisperCallback(self, language=language, task=task, prompt_strategy=prompt_strategy, **decodeOptions)
+        return WhisperCallback(self, languageCode=languageCode, task=task, prompt_strategy=prompt_strategy, **decodeOptions)
 
     def _get_model_path(self, model_config: ModelConfig, root_dir: str = None):
         from src.conversion.hf_converter import convert_hf_whisper
@@ -160,11 +160,11 @@ class WhisperContainer(AbstractWhisperContainer):
         return model_config.path
 
 class WhisperCallback(AbstractWhisperCallback):
-    def __init__(self, model_container: WhisperContainer, language: str = None, task: str = None, 
+    def __init__(self, model_container: WhisperContainer, languageCode: str = None, task: str = None, 
                  prompt_strategy: AbstractPromptStrategy = None, 
                  **decodeOptions: dict):
         self.model_container = model_container
-        self.language = language
+        self.languageCode = languageCode
         self.task = task
         self.prompt_strategy = prompt_strategy
 
@@ -204,7 +204,7 @@ class WhisperCallback(AbstractWhisperCallback):
                            if self.prompt_strategy else prompt
 
         result = model.transcribe(audio, \
-            language=self.language if self.language else detected_language, task=self.task, \
+            language=self.languageCode if self.languageCode else detected_language, task=self.task, \
             initial_prompt=initial_prompt, \
             **decodeOptions
         )

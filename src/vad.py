@@ -242,9 +242,8 @@ class AbstractTranscription(ABC):
 
                 # Update prompt window
                 self.__update_prompt_window(prompt_window, adjusted_segments, segment_end, segment_gap, config)
-                
-            if detected_language is not None:
-                result['language'] = detected_language
+            
+            result['language'] = detected_language if detected_language is not None else segment_result['language']
         finally:
             # Notify progress listener that we are done
             if progressListener is not None:
