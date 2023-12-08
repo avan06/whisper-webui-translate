@@ -708,7 +708,7 @@ class WhisperTranscriber:
         if srt_bilingual is not None and len(srt_bilingual) > 0:
             output_files.append(self.__create_file(srt_bilingual, output_dir, source_name + "-bilingual.srt"));
 
-        return output_files, text, vtt
+        return output_files, text, srt_bilingual if srt_bilingual is not None and len(srt_bilingual) > 0 else vtt
 
     def clear_cache(self):
         self.model_cache.clear()
