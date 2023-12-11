@@ -265,19 +265,22 @@ class WhisperTranscriber:
             if whisperNoRepeatNgramSize is not None and whisperNoRepeatNgramSize <= 1:
                 decodeOptions.pop("no_repeat_ngram_size")
 
-            # word_timestamps                   = options.get("word_timestamps", False)
-            # condition_on_previous_text        = options.get("condition_on_previous_text", False)
+            for key, value in list(decodeOptions.items()):
+                if value == "":
+                    del decodeOptions[key]
 
-            # prepend_punctuations              = options.get("prepend_punctuations", None)
-            # append_punctuations               = options.get("append_punctuations", None)
-            # initial_prompt                    = options.get("initial_prompt", None)
-            # best_of                           = options.get("best_of", None)
-            # beam_size                         = options.get("beam_size", None)
-            # patience                          = options.get("patience", None)
-            # length_penalty                    = options.get("length_penalty", None)
-            # suppress_tokens                   = options.get("suppress_tokens", None)
-            # compression_ratio_threshold       = options.get("compression_ratio_threshold", None)
-            # logprob_threshold                 = options.get("logprob_threshold", None)
+            # word_timestamps             = decodeOptions.get("word_timestamps", False)
+            # condition_on_previous_text  = decodeOptions.get("condition_on_previous_text", False)
+            # prepend_punctuations        = decodeOptions.get("prepend_punctuations", None)
+            # append_punctuations         = decodeOptions.get("append_punctuations", None)
+            # initial_prompt              = decodeOptions.get("initial_prompt", None)
+            # best_of                     = decodeOptions.get("best_of", None)
+            # beam_size                   = decodeOptions.get("beam_size", None)
+            # patience                    = decodeOptions.get("patience", None)
+            # length_penalty              = decodeOptions.get("length_penalty", None)
+            # suppress_tokens             = decodeOptions.get("suppress_tokens", None)
+            # compression_ratio_threshold = decodeOptions.get("compression_ratio_threshold", None)
+            # logprob_threshold           = decodeOptions.get("logprob_threshold", None)
 
             vadOptions = VadOptions(vad, vadMergeWindow, vadMaxMergeSize, vadPadding, vadPromptWindow, vadInitialPromptMode)
 
@@ -378,7 +381,7 @@ class WhisperTranscriber:
 
                     # Transcribe
                     result = self.transcribe_file(model, source.source_path, whisperLangCode, task, vadOptions, scaled_progress_listener, **decodeOptions)
-                    if whisperLang is None and result["language"] is not None and len(result["language"]) > 0:
+                    if translationModel is not None and whisperLang is None and result["language"] is not None and len(result["language"]) > 0:
                         whisperLang = get_lang_from_whisper_code(result["language"])
                         translationModel.whisperLang = whisperLang
                         
@@ -407,7 +410,7 @@ class WhisperTranscriber:
                             out = ffmpeg.output(input_file, input_srt, output_with_srt, vcodec='copy', acodec='copy', scodec='mov_text')
                             outRsult = out.run(overwrite_output=True)
                         except Exception as e:
-                            # Ignore error - it's just a cleanup
+                            print(traceback.format_exc())
                             print("Error merge subtitle with source file: \n" + source.source_path + ", \n" + str(e), outRsult)
                     elif self.app_config.save_downloaded_files and self.app_config.output_dir is not None and urlData:
                         print("Saving downloaded file [" + source.source_name + "]")
@@ -415,7 +418,7 @@ class WhisperTranscriber:
                             save_path = os.path.join(self.app_config.output_dir, filePrefix)
                             shutil.copy(source.source_path, save_path + suffix)
                         except Exception as e:
-                            # Ignore error - it's just a cleanup
+                            print(traceback.format_exc())
                             print("Error saving downloaded file: \n" + source.source_path + ", \n" + str(e))
 
                     if len(sources) > 1:
@@ -467,7 +470,7 @@ class WhisperTranscriber:
                         try:
                             os.remove(source.source_path)
                         except Exception as e:
-                            # Ignore error - it's just a cleanup
+                            print(traceback.format_exc())
                             print("Error deleting temporary source file: \n" + source.source_path + ", \n" + str(e))
         
         except ExceededMaximumDuration as e:
@@ -613,7 +616,7 @@ class WhisperTranscriber:
     def _create_silero_config(self, non_speech_strategy: NonSpeechStrategy, vadOptions: VadOptions):
         # Use Silero VAD 
         if (self.vad_model is None):
-            self.vad_model = VadSileroTranscription()
+            self.vad_model = VadSileroTranscription() #vad_model is snakers4/silero-vad
 
         config = TranscriptionConfig(non_speech_strategy = non_speech_strategy, 
                 max_silent_period=vadOptions.vadMergeWindow, max_merge_size=vadOptions.vadMaxMergeSize, 
@@ -655,7 +658,6 @@ class WhisperTranscriber:
 
                 print("\n\nprocess segments took {} seconds.\n\n".format(perf_end_time - perf_start_time))
             except Exception as e:
-                # Ignore error - it's just a cleanup
                 print(traceback.format_exc())
                 print("Error process segments: " + str(e))
 
@@ -812,13 +814,13 @@ def create_ui(app_config: ApplicationConfig):
 
     uiArticle = "Read the [documentation here](https://gitlab.com/aadnk/whisper-webui/-/blob/main/docs/options.md)."
     uiArticle += "\n\nWhisper's Task 'translate' only implements the functionality of translating other languages into English. "
-    uiArticle += "OpenAI does not guarantee translations between arbitrary languages. In such cases, you can choose to use the NLLB Model to implement the translation task. "
-    uiArticle += "However, it's important to note that the NLLB Model runs slowly, and the completion time may be twice as long as usual. "
-    uiArticle += "\n\nThe larger the parameters of the NLLB model, the better its performance is expected to be. "
+    uiArticle += "OpenAI does not guarantee translations between arbitrary languages. In such cases, you can choose to use the Translation Model to implement the translation task. "
+    uiArticle += "However, it's important to note that the Translation Model runs slowly(in CPU), and the completion time may be twice as long as usual. "
+    uiArticle += "\n\nThe larger the parameters of the Translation model, the better its performance is expected to be. "
     uiArticle += "However, it also requires higher computational resources, making it slower to operate. "
-    uiArticle += "On the other hand, the version converted from ct2 (CTranslate2) requires lower resources and operates at a faster speed."
-    uiArticle += "\n\nCurrently, enabling word-level timestamps cannot be used in conjunction with NLLB Model translation "
-    uiArticle += "because Word Timestamps will split the source text, and after translation, it becomes a non-word-level string. "
+    uiArticle += "On the other hand, the version converted from ct2 ([CTranslate2](https://opennmt.net/CTranslate2/guides/transformers.html)) requires lower resources and operates at a faster speed."
+    uiArticle += "\n\nCurrently, enabling `Highlight Words` timestamps cannot be used in conjunction with Translation Model translation "
+    uiArticle += "because Highlight Words will split the source text, and after translation, it becomes a non-word-level string. "
     uiArticle += "\n\nThe 'mt5-zh-ja-en-trimmed' model is finetuned from Google's 'mt5-base' model. "
     uiArticle += "This model has a relatively good translation speed, but it only supports three languages: Chinese, Japanese, and English. "
 
@@ -942,7 +944,7 @@ def create_ui(app_config: ApplicationConfig):
 
     fullInputDict = {}
     fullDescription = uiDescription + "\n\n\n\n" + "Be careful when changing some of the options in the full interface - this can cause the model to crash."
-
+    
     with gr.Blocks() as fullTranscribe:
         fullTranslateInput = gr.State(value="m2m100", elem_id = "translateInput")
         fullSourceInput = gr.State(value="urlData", elem_id = "sourceInput")
@@ -994,7 +996,7 @@ def create_ui(app_config: ApplicationConfig):
                             gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0, elem_id = "best_of"),
                             gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0, elem_id = "beam_size"),
                             gr.Number(label="Patience - Zero temperature", value=app_config.patience, elem_id = "patience"),
-                            gr.Number(label="Length Penalty - Any temperature", value=app_config.length_penalty, elem_id = "length_penalty"),
+                            gr.Number(label="Length Penalty - Any temperature", value=lambda : None if app_config.length_penalty is None else app_config.length_penalty, elem_id = "length_penalty"),
                             gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens, elem_id = "suppress_tokens"),
                             gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text, elem_id = "condition_on_previous_text"),
                             gr.Checkbox(label="FP16", value=app_config.fp16, elem_id = "fp16"),

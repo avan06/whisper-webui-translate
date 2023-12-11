@@ -231,7 +231,7 @@ class AbstractTranscription(ABC):
                         # Add expand amount if the segment got expanded
                         if (adjusted_segment_end > segment_without_expansion):
                             adjusted_segment["expand_amount"] = adjusted_segment_end - segment_without_expansion
-
+                
                 # Append to output
                 result['text'] += segment_result['text']
                 result['segments'].extend(adjusted_segments)
@@ -249,7 +249,7 @@ class AbstractTranscription(ABC):
             if progressListener is not None:
                 progressListener.on_finished()
         return result
-    
+
     def get_audio_duration(self, audio: str, config: TranscriptionConfig):
         return get_audio_duration(audio)
 
@@ -449,6 +449,10 @@ class VadSileroTranscription(AbstractTranscription):
             print("Created Silerio model")
 
     def _create_model(self):
+        """
+        (get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks) = utils
+        https://github.com/snakers4/silero-vad
+        """
         repo_owner = "snakers4"
         repo_name = "silero-vad"
         ref = "master"

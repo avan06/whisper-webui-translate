@@ -160,13 +160,17 @@ class FasterWhisperCallback(AbstractWhisperCallback):
             "text": segment.text,
             "start": segment.start,
             "end": segment.end,
+            "temperature": segment.temperature,
+            "avg_logprob": segment.avg_logprob,
+            "compression_ratio": segment.compression_ratio,
+            "no_speech_prob": segment.no_speech_prob,
 
             # Extra fields added by faster-whisper
             "words": [{
                 "start": word.start,
                 "end": word.end,
                 "word": word.word,
-                "probability": word.probability
+                "probability": word.probability,
             } for word in (segment.words if segment.words is not None else []) ]
         } for segment in segments]
 
