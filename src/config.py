@@ -43,7 +43,7 @@ class VadInitialPromptMode(Enum):
             return None
 
 class ApplicationConfig:
-    def __init__(self, models: Dict[Literal["whisper", "m2m100", "nllb", "mt5"], List[ModelConfig]],
+    def __init__(self, models: Dict[Literal["whisper", "m2m100", "nllb", "mt5", "ALMA"], List[ModelConfig]],
                  input_audio_max_duration: int = 600, share: bool = False, server_name: str = None, server_port: int = 7860, 
                  queue_concurrency_count: int = 1, delete_uploaded_files: bool = True,
                  whisper_implementation: str = "whisper", default_model_name: str = "medium", 
@@ -169,7 +169,7 @@ class ApplicationConfig:
             # Load using json5
             data = json5.load(f)
             data_models = data.pop("models", [])
-            models: Dict[Literal["whisper", "m2m100", "nllb", "mt5"], List[ModelConfig]] = {
+            models: Dict[Literal["whisper", "m2m100", "nllb", "mt5", "ALMA"], List[ModelConfig]] = {
                 key: [ModelConfig(**item) for item in value]
                 for key, value in data_models.items()
             }

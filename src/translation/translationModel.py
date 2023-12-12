@@ -7,6 +7,8 @@ import torch
 import ctranslate2
 import transformers
 
+import re
+
 from typing import Optional
 from src.config import ModelConfig
 from src.translation.translationLangs import TranslationLang, get_lang_from_whisper_code
@@ -97,6 +99,11 @@ class TranslationModel:
             self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False) #requires spiece.model
             self.transModel = transformers.MT5ForConditionalGeneration.from_pretrained(self.modelPath)
             self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
+        elif "ALMA" in self.modelPath:
+            self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.code + " to " + self.translationLang.whisper.code + ":" + self.whisperLang.whisper.code + ":"
+            self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
+            self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", trust_remote_code=False, revision="main")
+            self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, tokenizer=self.transTokenizer, batch_size=2, do_sample=True, temperature=0.7, top_p=0.95, top_k=40, repetition_penalty=1.1)
         else:
             self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath)
             self.transModel = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.modelPath)
@@ -130,6 +137,12 @@ class TranslationModel:
             elif "mt5" in self.modelPath:
                 output = self.transTranslator(self.mt5Prefix + text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams) #, num_return_sequences=2
                 result = output[0]['generated_text']
+            elif "ALMA" in self.modelPath:
+                output = self.transTranslator(self.ALMAPrefix + text + self.translationLang.whisper.code + ":", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
+                result = output[0]['generated_text']
+                result = re.sub(rf'^(.*{self.translationLang.whisper.code}: )', '', result)  # Remove the prompt from the result
+                result = re.sub(rf'^(Translate this from .* to .*:)', '', result)  # Remove the translation instruction
+                return result.strip()
             else: #M2M100 & NLLB
                 output = self.transTranslator(text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
                 result = output[0]['translation_text']
@@ -148,7 +161,8 @@ _MODELS = ["distilled-600M", "distilled-1.3B", "1.3B", "3.3B",
            "m2m100_1.2B-ct2", "m2m100_418M-ct2", "m2m100-12B-ct2", 
            "m2m100_1.2B", "m2m100_418M",
            "mt5-zh-ja-en-trimmed",
-           "mt5-zh-ja-en-trimmed-fine-tuned-v1"]
+           "mt5-zh-ja-en-trimmed-fine-tuned-v1",
+           "ALMA-13B-GPTQ"]
 
 def check_model_name(name):
     return any(allowed_name in name for allowed_name in _MODELS)
@@ -206,6 +220,9 @@ def download_model(
         "special_tokens_map.json",
         "spiece.model",
         "vocab.json", #m2m100
+        "model.safetensors",
+        "quantize_config.json",
+        "tokenizer.model"
     ]
 
     kwargs = {

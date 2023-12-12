@@ -191,6 +191,13 @@
         "url": "engmatic-earth/mt5-zh-ja-en-trimmed-fine-tuned-v1",
         "type": "huggingface"
       }
+    ],
+    "ALMA": [
+      {
+        "name": "ALMA-13B-GPTQ/TheBloke",
+        "url": "TheBloke/ALMA-13B-GPTQ",
+        "type": "huggingface", 
+      },
     ]
   },
   // Configuration options that will be used if they are not specified in the command line arguments.
