@@ -124,6 +124,19 @@ class TranslationModel:
             If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.
         repetition_penalty (float, optional, defaults to 1.0)
             The parameter for repetition penalty. 1.0 means no penalty. See this paper for more details.
+            
+        [transformers.GPTQConfig]
+        use_exllama (bool, optional):
+            Whether to use exllama backend. Defaults to True if unset. Only works with bits = 4.
+        
+        [ExLlama]
+            ExLlama is a Python/C++/CUDA implementation of the Llama model that is designed for faster inference with 4-bit GPTQ weights (check out these benchmarks). 
+            The ExLlama kernel is activated by default when you create a [GPTQConfig] object. 
+            To boost inference speed even further, use the ExLlamaV2 kernels by configuring the exllama_config parameter.
+            The ExLlama kernels are only supported when the entire model is on the GPU. 
+            If you're doing inference on a CPU with AutoGPTQ (version > 0.4.2), then you'll need to disable the ExLlama kernel. 
+            This overwrites the attributes related to the ExLlama kernels in the quantization config of the config.json file.
+            https://github.com/huggingface/transformers/blob/main/docs/source/en/quantization.md#exllama
         """
         try:
             print('\n\nLoading model: %s\n\n' % self.modelPath)
@@ -148,7 +161,13 @@ class TranslationModel:
             elif "ALMA" in self.modelPath:
                 self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
                 self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
-                self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision)
+                transModelConfig = transformers.AutoConfig.from_pretrained(self.modelPath)
+                if self.device == "cpu":
+                    transModelConfig.quantization_config["use_exllama"] = False
+                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision, config=transModelConfig)
+                else:
+                    # transModelConfig.quantization_config["exllama_config"] = {"version":2} # After configuring to use ExLlamaV2, VRAM cannot be effectively released, which may be an issue. Temporarily not adopting the V2 version.
+                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision)
                 self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, tokenizer=self.transTokenizer, do_sample=True, temperature=0.7, top_k=40, top_p=0.95, repetition_penalty=1.1)
             else:
                 self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath)

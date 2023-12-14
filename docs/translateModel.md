@@ -16,7 +16,7 @@ The required VRAM is provided for reference and may not apply to everyone. If th
 
 ## M2M100
 
-2M100 is a multilingual translation model introduced by Facebook AI in October 2020. It supports arbitrary translation among 101 languages. The paper is titled "`Beyond English-Centric Multilingual Machine Translation`" ([arXiv:2010.11125](https://arxiv.org/abs/2010.11125)).  
+M2M100 is a multilingual translation model introduced by Facebook AI in October 2020. It supports arbitrary translation among 101 languages. The paper is titled "`Beyond English-Centric Multilingual Machine Translation`" ([arXiv:2010.11125](https://arxiv.org/abs/2010.11125)).  
 
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
@@ -40,8 +40,8 @@ NLLB-200 is a multilingual translation model introduced by Meta AI in July 2022.
 |------|------------|------|---------------|---------------|
 | [facebook/nllb-200-distilled-600M](https://huggingface.co/facebook/nllb-200-distilled-600M) | 600M | 2.46 GB | float32 | ≈2.5 GB |
 | [facebook/nllb-200-distilled-1.3B](https://huggingface.co/facebook/nllb-200-distilled-1.3B) | 1.3B | 5.48 GB | float32 | ≈5.9 GB |
-| [facebook/nllb-200-1.3B](https://huggingface.co/facebook/nllb-200-1.3B) | 1.3B | 5.48 GB | float32 | 5.8 GB |
-| [facebook/nllb-200-3.3B](https://huggingface.co/facebook/nllb-200-3.3B) | 3.3B | 17.58 GB | float32 | 13.4 GB |
+| [facebook/nllb-200-1.3B](https://huggingface.co/facebook/nllb-200-1.3B) | 1.3B | 5.48 GB | float32 | ≈5.8 GB |
+| [facebook/nllb-200-3.3B](https://huggingface.co/facebook/nllb-200-3.3B) | 3.3B | 17.58 GB | float32 | ≈13.4 GB |
 
 ## NLLB-200-CTranslate2
 
