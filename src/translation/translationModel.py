@@ -3,11 +3,9 @@ import warnings
 import huggingface_hub
 import requests
 import torch
-
 import ctranslate2
 import transformers
-
-import re
+import traceback
 
 from typing import Optional
 from src.config import ModelConfig
@@ -85,84 +83,175 @@ class TranslationModel:
             self.load_model()
 
     def load_model(self):
-        print('\n\nLoading model: %s\n\n' % self.modelPath)
-        if "ct2" in self.modelPath:
-            if "nllb" in self.modelPath:
-                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.nllb.code)
-                self.targetPrefix = [self.translationLang.nllb.code]
-            elif "m2m100" in self.modelPath:
-                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.m2m100.code)
-                self.targetPrefix = [self.transTokenizer.lang_code_to_token[self.translationLang.m2m100.code]]
-            self.transModel = ctranslate2.Translator(self.modelPath, compute_type="auto", device=self.device)
-        elif "mt5" in self.modelPath:
-            self.mt5Prefix = self.whisperLang.whisper.code + "2" + self.translationLang.whisper.code + ": "
-            self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False) #requires spiece.model
-            self.transModel = transformers.MT5ForConditionalGeneration.from_pretrained(self.modelPath)
-            self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
-        elif "ALMA" in self.modelPath:
-            self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.code + " to " + self.translationLang.whisper.code + ":" + self.whisperLang.whisper.code + ":"
-            self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
-            self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", trust_remote_code=False, revision="main")
-            self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, tokenizer=self.transTokenizer, batch_size=2, do_sample=True, temperature=0.7, top_p=0.95, top_k=40, repetition_penalty=1.1)
-        else:
-            self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath)
-            self.transModel = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.modelPath)
-            if "m2m100" in self.modelPath:
-                self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.m2m100.code, tgt_lang=self.translationLang.m2m100.code)
-            else: #NLLB
-                self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.nllb.code, tgt_lang=self.translationLang.nllb.code)
+        """
+        [from_pretrained]
+        low_cpu_mem_usage(bool, optional)
+        Tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model. This is an experimental feature and a subject to change at any moment.
+        
+        [transformers.AutoTokenizer.from_pretrained]
+        use_fast (bool, optional, defaults to True):
+            Use a fast Rust-based tokenizer if it is supported for a given model. 
+            If a fast tokenizer is not available for a given model, a normal Python-based tokenizer is returned instead.
+        
+        [transformers.AutoModelForCausalLM.from_pretrained]
+        device_map (str or Dict[str, Union[int, str, torch.device], optional):
+            Sent directly as model_kwargs (just a simpler shortcut). When accelerate library is present, 
+            set device_map="auto" to compute the most optimized device_map automatically.
+        revision (str, optional, defaults to "main"):
+            The specific model version to use. It can be a branch name, a tag name, or a commit id, 
+            since we use a git-based system for storing models and other artifacts on huggingface.co, 
+            so revision can be any identifier allowed by git.
+        code_revision (str, optional, defaults to "main")
+            The specific revision to use for the code on the Hub, if the code leaves in a different repository than the rest of the model. 
+            It can be a branch name, a tag name, or a commit id, since we use a git-based system for storing models and other artifacts on huggingface.co, 
+            so revision can be any identifier allowed by git.
+        trust_remote_code (bool, optional, defaults to False):
+            Whether or not to allow for custom models defined on the Hub in their own modeling files. 
+            This option should only be set to True for repositories you trust and in which you have read the code, 
+            as it will execute code present on the Hub on your local machine.
+        
+        [transformers.pipeline "text-generation"]
+        do_sample:
+            if set to True, this parameter enables decoding strategies such as multinomial sampling, 
+            beam-search multinomial sampling, Top-K sampling and Top-p sampling. 
+            All these strategies select the next token from the probability distribution 
+            over the entire vocabulary with various strategy-specific adjustments.
+        temperature (float, optional, defaults to 1.0):
+            The value used to modulate the next token probabilities.
+        top_k (int, optional, defaults to 50):
+            The number of highest probability vocabulary tokens to keep for top-k-filtering.
+        top_p (float, optional, defaults to 1.0):
+            If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.
+        repetition_penalty (float, optional, defaults to 1.0)
+            The parameter for repetition penalty. 1.0 means no penalty. See this paper for more details.
+        """
+        try:
+            print('\n\nLoading model: %s\n\n' % self.modelPath)
+            if "ct2" in self.modelPath:
+                if any(name in self.modelPath for name in ["nllb", "m2m100"]):
+                    if "nllb" in self.modelPath:
+                        self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.nllb.code)
+                        self.targetPrefix = [self.translationLang.nllb.code]
+                    elif "m2m100" in self.modelPath:
+                        self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.m2m100.code)
+                        self.targetPrefix = [self.transTokenizer.lang_code_to_token[self.translationLang.m2m100.code]]
+                    self.transModel = ctranslate2.Translator(self.modelPath, compute_type="auto", device=self.device)
+                elif "ALMA" in self.modelPath:
+                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath)
+                    self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
+                    self.transModel = ctranslate2.Generator(self.modelPath, device=self.device)
+            elif "mt5" in self.modelPath:
+                self.mt5Prefix = self.whisperLang.whisper.code + "2" + self.translationLang.whisper.code + ": "
+                self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False) #requires spiece.model
+                self.transModel = transformers.MT5ForConditionalGeneration.from_pretrained(self.modelPath, low_cpu_mem_usage=True)
+                self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
+            elif "ALMA" in self.modelPath:
+                self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
+                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
+                self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision)
+                self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, tokenizer=self.transTokenizer, do_sample=True, temperature=0.7, top_k=40, top_p=0.95, repetition_penalty=1.1)
+            else:
+                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath)
+                self.transModel = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.modelPath)
+                if "m2m100" in self.modelPath:
+                    self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.m2m100.code, tgt_lang=self.translationLang.m2m100.code)
+                else: #NLLB
+                    self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.nllb.code, tgt_lang=self.translationLang.nllb.code)
+
+        except Exception as e:
+            print(traceback.format_exc())
+            self.release_vram()
 
     def release_vram(self):
         try:
             if torch.cuda.is_available():
                 if "ct2" not in self.modelPath:
-                    device = torch.device("cpu")
-                    self.transModel.to(device)
+                    try:
+                        device = torch.device("cpu")
+                        self.transModel.to(device)
+                    except Exception as e:
+                        print(traceback.format_exc())
+                        print("\tself.transModel.to cpu, error: " + str(e))
+                    del self.transTranslator
+                del self.transTokenizer
                 del self.transModel
-                torch.cuda.empty_cache()
+                try:
+                    torch.cuda.empty_cache()
+                except Exception as e:
+                    print(traceback.format_exc())
+                    print("\tcuda empty cache, error: " + str(e))
+                import gc
+                gc.collect()
                 print("release vram end.")
         except Exception as e:
             print("Error release vram: " + str(e))
 
 
     def translation(self, text: str, max_length: int = 400):
+        """
+        [ctranslate2]
+        max_batch_size:
+            The maximum batch size. If the number of inputs is greater than max_batch_size, 
+            the inputs are sorted by length and split by chunks of max_batch_size examples 
+            so that the number of padding positions is minimized.
+        no_repeat_ngram_size:
+            Prevent repetitions of ngrams with this size (set 0 to disable).
+        beam_size:
+            Beam size (1 for greedy search).
+        
+        [ctranslate2.Generator.generate_batch]
+        sampling_temperature:
+            Sampling temperature to generate more random samples.
+        sampling_topk:
+            Randomly sample predictions from the top K candidates.
+        sampling_topp:
+            Keep the most probable tokens whose cumulative probability exceeds this value.
+        repetition_penalty:
+            Penalty applied to the score of previously generated tokens (set > 1 to penalize).
+        include_prompt_in_result:
+            Include the start_tokens in the result.
+            If include_prompt_in_result is True (the default), the decoding loop is constrained to generate the start tokens that are then included in the result.
+            If include_prompt_in_result is False, the start tokens are forwarded in the decoder at once to initialize its state (i.e. the KV cache for Transformer models).
+            For variable-length inputs, only the tokens up to the minimum length in the batch are forwarded at once. The remaining tokens are generated in the decoding loop with constrained decoding.
+
+        [transformers.TextGenerationPipeline.__call__]
+        return_full_text (bool, optional, defaults to True):
+            If set to False only added text is returned, otherwise the full text is returned. Only meaningful if return_text is set to True.
+        """
         output = None
         result = None
         try:
             if "ct2" in self.modelPath:
-                source = self.transTokenizer.convert_ids_to_tokens(self.transTokenizer.encode(text))
-                output = self.transModel.translate_batch([source], target_prefix=[self.targetPrefix], max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams)
-                target = output[0].hypotheses[0][1:]
-                result = self.transTokenizer.decode(self.transTokenizer.convert_tokens_to_ids(target))
+                if any(name in self.modelPath for name in ["nllb", "m2m100"]):
+                    source = self.transTokenizer.convert_ids_to_tokens(self.transTokenizer.encode(text))
+                    output = self.transModel.translate_batch([source], target_prefix=[self.targetPrefix], max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams)
+                    target = output[0].hypotheses[0][1:]
+                    result = self.transTokenizer.decode(self.transTokenizer.convert_tokens_to_ids(target))
+                elif "ALMA" in self.modelPath:
+                    source = self.transTokenizer.convert_ids_to_tokens(self.transTokenizer.encode(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": "))
+                    output = self.transModel.generate_batch([source], max_length=max_length, max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams, sampling_temperature=0.7, sampling_topp=0.9, repetition_penalty=1.1, include_prompt_in_result=False) #, sampling_topk=40
+                    target = output[0]
+                    result = self.transTokenizer.decode(target.sequences_ids[0])
             elif "mt5" in self.modelPath:
                 output = self.transTranslator(self.mt5Prefix + text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams) #, num_return_sequences=2
                 result = output[0]['generated_text']
             elif "ALMA" in self.modelPath:
-                output = self.transTranslator(self.ALMAPrefix + text + self.translationLang.whisper.code + ":", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
+                output = self.transTranslator(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": ", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams, return_full_text=False)
                 result = output[0]['generated_text']
-                result = re.sub(rf'^(.*{self.translationLang.whisper.code}: )', '', result)  # Remove the prompt from the result
-                result = re.sub(rf'^(Translate this from .* to .*:)', '', result)  # Remove the translation instruction
-                return result.strip()
             else: #M2M100 & NLLB
                 output = self.transTranslator(text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
                 result = output[0]['translation_text']
         except Exception as e:
+            print(traceback.format_exc())
             print("Error translation text: " + str(e))
 
         return result
 
 
-_MODELS = ["distilled-600M", "distilled-1.3B", "1.3B", "3.3B", 
-           "ct2fast-nllb-200-distilled-1.3B-int8_float16", 
-           "ct2fast-nllb-200-3.3B-int8_float16", 
-           "nllb-200-3.3B-ct2-float16", "nllb-200-1.3B-ct2", "nllb-200-1.3B-ct2-int8", "nllb-200-1.3B-ct2-float16", 
-           "nllb-200-distilled-1.3B-ct2", "nllb-200-distilled-1.3B-ct2-int8", "nllb-200-distilled-1.3B-ct2-float16", 
-           "nllb-200-distilled-600M-ct2", "nllb-200-distilled-600M-ct2-int8", "nllb-200-distilled-600M-ct2-float16",
-           "m2m100_1.2B-ct2", "m2m100_418M-ct2", "m2m100-12B-ct2", 
-           "m2m100_1.2B", "m2m100_418M",
-           "mt5-zh-ja-en-trimmed",
-           "mt5-zh-ja-en-trimmed-fine-tuned-v1",
-           "ALMA-13B-GPTQ"]
+_MODELS = ["nllb-200", 
+           "m2m100",
+           "mt5",
+           "ALMA"]
 
 def check_model_name(name):
     return any(allowed_name in name for allowed_name in _MODELS)
@@ -230,6 +319,9 @@ def download_model(
         "allow_patterns": allowPatterns,
         #"tqdm_class": disabled_tqdm,
     }
+    
+    if modelConfig.revision is not None:
+        kwargs["revision"] = modelConfig.revision
 
     if outputDir is not None:
         kwargs["local_dir"] = outputDir

@@ -130,7 +130,7 @@ def write_srt_original(transcript: Iterator[dict], file: TextIO,
             flush=True,
         )
         
-        if original is not None: print(f"{original}\n",
+        if original is not None: print(f"{original}",
             file=file,
             flush=True)
         

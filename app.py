@@ -40,7 +40,7 @@ from src.whisper.whisperFactory import create_whisper_container
 from src.translation.translationModel import TranslationModel
 from src.translation.translationLangs import (TranslationLang,
                                               _TO_LANG_CODE_WHISPER, get_lang_whisper_names, get_lang_from_whisper_name, get_lang_from_whisper_code, 
-                                              get_lang_nllb_names, get_lang_from_nllb_name, get_lang_m2m100_names, get_lang_from_m2m100_name)
+                                              get_lang_nllb_names, get_lang_from_nllb_name, get_lang_m2m100_names, get_lang_from_m2m100_name, sort_lang_by_whisper_codes)
 import shutil
 import zhconv
 import tqdm
@@ -773,8 +773,15 @@ class WhisperTranscriber:
             self.diarization = None
 
 def create_ui(app_config: ApplicationConfig):
+    translateModelMd: str = None
     optionsMd: str = None
     readmeMd: str = None
+    try:
+        translateModelPath = pathlib.Path("docs/translateModel.md")
+        with open(translateModelPath, "r", encoding="utf-8") as translateModelFile:
+            translateModelMd = translateModelFile.read()
+    except Exception as e:
+        print("Error occurred during read translateModel.md file: ", str(e))
     try:
         optionsPath = pathlib.Path("docs/options.md")
         with open(optionsPath, "r", encoding="utf-8") as optionsFile:
@@ -819,16 +826,6 @@ def create_ui(app_config: ApplicationConfig):
         uiDescription += "\n\n" + "Max audio file length: " + str(app_config.input_audio_max_duration) + " s"
 
     uiArticle = "Read the [documentation here](https://gitlab.com/aadnk/whisper-webui/-/blob/main/docs/options.md)."
-    uiArticle += "\n\nWhisper's Task 'translate' only implements the functionality of translating other languages into English. "
-    uiArticle += "OpenAI does not guarantee translations between arbitrary languages. In such cases, you can choose to use the Translation Model to implement the translation task. "
-    uiArticle += "However, it's important to note that the Translation Model runs slowly(in CPU), and the completion time may be twice as long as usual. "
-    uiArticle += "\n\nThe larger the parameters of the Translation model, the better its performance is expected to be. "
-    uiArticle += "However, it also requires higher computational resources, making it slower to operate. "
-    uiArticle += "On the other hand, the version converted from ct2 ([CTranslate2](https://opennmt.net/CTranslate2/guides/transformers.html)) requires lower resources and operates at a faster speed."
-    uiArticle += "\n\nCurrently, enabling `Highlight Words` timestamps cannot be used in conjunction with Translation Model translation "
-    uiArticle += "because Highlight Words will split the source text, and after translation, it becomes a non-word-level string. "
-    uiArticle += "\n\nThe 'mt5-zh-ja-en-trimmed' model is finetuned from Google's 'mt5-base' model. "
-    uiArticle += "This model has a relatively good translation speed, but it only supports three languages: Chinese, Japanese, and English. "
 
     whisper_models = app_config.get_model_names("whisper")
     nllb_models = app_config.get_model_names("nllb")
@@ -854,7 +851,7 @@ def create_ui(app_config: ApplicationConfig):
     }
     common_ALMA_inputs = lambda : {
         gr.Dropdown(label="ALMA - Model (for translate)", choices=ALMA_models, elem_id="ALMAModelName"),
-        gr.Dropdown(label="ALMA - Language", choices=sorted(get_lang_m2m100_names(["en", "ja", "zh"])), elem_id="ALMALangName"),
+        gr.Dropdown(label="ALMA - Language", choices=sort_lang_by_whisper_codes(["en", "de", "cs", "is", "ru", "zh", "ja"]), elem_id="ALMALangName"),
     }
     
     common_translation_inputs = lambda : {
@@ -944,8 +941,10 @@ def create_ui(app_config: ApplicationConfig):
                         simpleInputDict.update(common_translation_inputs())
             with gr.Column():
                 simpleOutput = common_output()
-        with gr.Accordion("Article"):
-            gr.Markdown(uiArticle)
+        gr.Markdown(uiArticle)
+        if translateModelMd is not None:
+            with gr.Accordion("docs/translateModel.md", open=False):    
+                gr.Markdown(translateModelMd)
         if optionsMd is not None:
             with gr.Accordion("docs/options.md", open=False):    
                 gr.Markdown(optionsMd)
@@ -1056,7 +1055,7 @@ def create_ui(app_config: ApplicationConfig):
         print("Queue mode enabled (concurrency count: " + str(app_config.queue_concurrency_count) + ")")
     else:
         print("Queue mode disabled - progress bars will not be shown.")
-   
+
     demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=app_config.server_port)
     
     # Clean up
@@ -1138,6 +1137,16 @@ if __name__ == '__main__':
     # updated_config.autolaunch = True
     # updated_config.auto_parallel = False
     # updated_config.save_downloaded_files = True
+    
+    try:
+        if torch.cuda.is_available():
+            deviceId = torch.cuda.current_device()
+            totalVram = torch.cuda.get_device_properties(deviceId).total_memory
+            if totalVram/(1024*1024*1024) <= 4: #VRAM <= 4 GB
+                updated_config.vad_process_timeout = 0
+    except Exception as e:
+        print(traceback.format_exc())
+        print("Error detect vram: " + str(e))
 
     if (threads := args.pop("threads")) > 0:
         torch.set_num_threads(threads)

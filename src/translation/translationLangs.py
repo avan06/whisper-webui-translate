@@ -1,4 +1,6 @@
-﻿class Lang():
+﻿from functools import cmp_to_key
+
+class Lang():
     def __init__(self, code: str, *names: str):
         self.code = code
         self.names = names
@@ -292,12 +294,30 @@ def get_lang_whisper_names():
     """Return a list of whisper language names."""
     return list(_TO_LANG_NAME_WHISPER.keys())
 
+def sort_lang_by_whisper_codes(specified_order: list = []):
+    def sort_by_whisper_code(lang: TranslationLang, specified_order: list):
+        return (specified_order.index(lang.whisper.code), lang.whisper.names[0]) if lang.whisper.code in specified_order else (len(specified_order), lang.whisper.names[0])
+
+    def cmp_by_whisper_code(lang1: TranslationLang, lang2: TranslationLang):
+        val1 = sort_by_whisper_code(lang1, specified_order)
+        val2 = sort_by_whisper_code(lang2, specified_order)
+        if val1 > val2:
+            return 1
+        elif val1 == val2:
+            return 0
+        else: return -1
+        
+    sorted_translations = sorted(_TO_LANG_NAME_WHISPER.values(), key=cmp_to_key(cmp_by_whisper_code))
+    return list({name.lower(): None for language in sorted_translations for name in language.whisper.names}.keys())
+
 if __name__ == "__main__":
     # Test lookup
     print("name:Chinese (Traditional)", get_lang_from_nllb_name("Chinese (Traditional)"))
     print("name:moldavian", get_lang_from_m2m100_name("moldavian"))
     print("code:ja", get_lang_from_whisper_code("ja"))
     print("name:English", get_lang_from_nllb_name('English'))
+    print("\n\n")
     
     print(get_lang_m2m100_names(["en", "ja", "zh"]))
-    print(get_lang_nllb_names())
+    print("\n\n")
+    print(sort_lang_by_whisper_codes(["en", "de", "cs", "is", "ru", "zh", "ja"]))

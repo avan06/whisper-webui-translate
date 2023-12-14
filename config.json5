@@ -194,9 +194,14 @@
     ],
     "ALMA": [
       {
+        "name": "ALMA-7B-GPTQ/TheBloke",
+        "url": "TheBloke/ALMA-7B-GPTQ",
+        "type": "huggingface"
+      },
+      {
         "name": "ALMA-13B-GPTQ/TheBloke",
         "url": "TheBloke/ALMA-13B-GPTQ",
-        "type": "huggingface", 
+        "type": "huggingface"
       },
     ]
   },

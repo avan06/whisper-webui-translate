@@ -1,4 +1,4 @@
-# Standard Options
+﻿# Standard Options
 To transcribe or translate an audio file, you can either copy an URL from a website (all [websites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 
 supported by YT-DLP will work, including YouTube). Otherwise, upload an audio file (choose "All Files (*.*)" 
 in the file selector to select any file type, including video files) or use the microphone.
@@ -154,29 +154,29 @@ The minimum number of speakers for Pyannote to detect.
 The maximum number of speakers for Pyannote to detect.
 
 ## Repetition Penalty
-- ctranslate2: repetition_penalty
+- ctranslate2: repetition_penalty  
 This parameter only takes effect in [faster-whisper (ctranslate2)](https://github.com/SYSTRAN/faster-whisper/issues/478).
 Penalty applied to the score of previously generated tokens (set > 1 to penalize).
 
 ## No Repeat Ngram Size
-- ctranslate2: no_repeat_ngram_size
+- ctranslate2: no_repeat_ngram_size  
 This parameter only takes effect in [faster-whisper (ctranslate2)](https://github.com/SYSTRAN/faster-whisper/issues/478).
 Prevent repetitions of ngrams with this size (set 0 to disable).
 
 ## Translation - Batch Size
-- transformers: batch_size
+- transformers: batch_size  
 When the pipeline will use DataLoader (when passing a dataset, on GPU for a Pytorch model), the size of the batch to use, for inference this is not always beneficial.
-- ctranslate2: max_batch_size
+- ctranslate2: max_batch_size  
 The maximum batch size.
 
 ## Translation - No Repeat Ngram Size
-- transformers: no_repeat_ngram_size
+- transformers: no_repeat_ngram_size  
 Value that will be used by default in the generate method of the model for no_repeat_ngram_size. If set to int > 0, all ngrams of that size can only occur once.
-- ctranslate2: no_repeat_ngram_size
+- ctranslate2: no_repeat_ngram_size  
 Prevent repetitions of ngrams with this size (set 0 to disable).
 
 ## Translation - Num Beams
-- transformers: num_beams
+- transformers: num_beams  
 Number of beams for beam search that will be used by default in the generate method of the model. 1 means no beam search.
-- ctranslate2: beam_size
+- ctranslate2: beam_size  
 Beam size (1 for greedy search).
