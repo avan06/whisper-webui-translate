@@ -163,8 +163,10 @@ class TranslationModel:
                 self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
                 transModelConfig = transformers.AutoConfig.from_pretrained(self.modelPath)
                 if self.device == "cpu":
+                    # ALMA is an excellent translation model, but it is strongly discouraged to operate it on CPU.
+                    # set torch_dtype=torch.float32 to prevent the occurrence of the exception "addmm_impl_cpu_ not implemented for 'Half'."
                     transModelConfig.quantization_config["use_exllama"] = False
-                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision, config=transModelConfig)
+                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision, config=transModelConfig, torch_dtype=torch.float32)
                 else:
                     # transModelConfig.quantization_config["exllama_config"] = {"version":2} # After configuring to use ExLlamaV2, VRAM cannot be effectively released, which may be an issue. Temporarily not adopting the V2 version.
                     self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision)

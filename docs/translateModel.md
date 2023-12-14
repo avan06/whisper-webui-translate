@@ -73,6 +73,7 @@ The 'mt5-zh-ja-en-trimmed' model is finetuned from Google's 'mt5-base' model. Th
 
 ## ALMA
 
+ALMA is an excellent translation model, but it is strongly discouraged to operate it on CPU.  
 ALMA is a many-to-many LLM-based translation model introduced by Haoran Xu and colleagues in September 2023. It is based on the fine-tuning of a large language model (LLaMA-2). The approach used for this model is referred to as Advanced Language Model-based trAnslator (ALMA). The paper is titled "`A Paradigm Shift in Machine Translation: Boosting Translation Performance of Large Language Models`" ([arXiv:2309.11674](https://arxiv.org/abs/2309.11674)).  
 The official support for ALMA currently includes 10 language directions: English↔German, English↔Czech, English↔Icelandic, English↔Chinese, and English↔Russian. However, the author hints that there might be surprises in other directions, so there are currently no restrictions on the languages that ALMA can be chosen for in the web UI.  
 
