@@ -65,7 +65,7 @@ class TranslationModel:
         if os.path.isdir(modelConfig.url):
             self.modelPath = modelConfig.url
         else:
-            self.modelPath = download_model(
+            self.modelPath = modelConfig.url if getattr(modelConfig, "model_file", None) is not None else download_model(
                 modelConfig,
                 localFilesOnly=localFilesOnly,
                 cacheDir=downloadRoot,
@@ -137,6 +137,12 @@ class TranslationModel:
             If you're doing inference on a CPU with AutoGPTQ (version > 0.4.2), then you'll need to disable the ExLlama kernel. 
             This overwrites the attributes related to the ExLlama kernels in the quantization config of the config.json file.
             https://github.com/huggingface/transformers/blob/main/docs/source/en/quantization.md#exllama
+            
+        [ctransformers]
+        gpu_layers
+            means number of layers to run on GPU. Depending on how much GPU memory is available you can increase gpu_layers. Start with a larger value gpu_layers=100 and if it runs out of memory, try smaller values.
+            To run some of the model layers on GPU, set the `gpu_layers` parameter
+            https://github.com/marella/ctransformers/issues/68
         """
         try:
             print('\n\nLoading model: %s\n\n' % self.modelPath)
@@ -152,7 +158,7 @@ class TranslationModel:
                 elif "ALMA" in self.modelPath:
                     self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath)
                     self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
-                    self.transModel = ctranslate2.Generator(self.modelPath, device=self.device)
+                    self.transModel = ctranslate2.Generator(self.modelPath, compute_type="auto", device=self.device)
             elif "mt5" in self.modelPath:
                 self.mt5Prefix = self.whisperLang.whisper.code + "2" + self.translationLang.whisper.code + ": "
                 self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False) #requires spiece.model
@@ -160,16 +166,24 @@ class TranslationModel:
                 self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
             elif "ALMA" in self.modelPath:
                 self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
-                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
-                transModelConfig = transformers.AutoConfig.from_pretrained(self.modelPath)
-                if self.device == "cpu":
-                    # ALMA is an excellent translation model, but it is strongly discouraged to operate it on CPU.
-                    # set torch_dtype=torch.float32 to prevent the occurrence of the exception "addmm_impl_cpu_ not implemented for 'Half'."
-                    transModelConfig.quantization_config["use_exllama"] = False
-                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision, config=transModelConfig, torch_dtype=torch.float32)
-                else:
-                    # transModelConfig.quantization_config["exllama_config"] = {"version":2} # After configuring to use ExLlamaV2, VRAM cannot be effectively released, which may be an issue. Temporarily not adopting the V2 version.
-                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision)
+                if "GPTQ" in self.modelPath:
+                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
+                    if self.device == "cpu":
+                        # Due to the poor support of GPTQ for CPUs, Therefore, it is strongly discouraged to operate it on CPU.  
+                        # set torch_dtype=torch.float32 to prevent the occurrence of the exception "addmm_impl_cpu_ not implemented for 'Half'."
+                        transModelConfig = transformers.AutoConfig.from_pretrained(self.modelPath)
+                        transModelConfig.quantization_config["use_exllama"] = False
+                        self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision, config=transModelConfig, torch_dtype=torch.float32)
+                    else:
+                        # transModelConfig.quantization_config["exllama_config"] = {"version":2} # After configuring to use ExLlamaV2, VRAM cannot be effectively released, which may be an issue. Temporarily not adopting the V2 version.
+                        self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision)
+                elif "GGUF" in self.modelPath:
+                    import ctransformers
+                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url)
+                    if self.device == "cpu":
+                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file)
+                    else:
+                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file, gpu_layers=50)
                 self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, tokenizer=self.transTokenizer, do_sample=True, temperature=0.7, top_k=40, top_p=0.95, repetition_penalty=1.1)
             else:
                 self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath)
@@ -180,22 +194,31 @@ class TranslationModel:
                     self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.nllb.code, tgt_lang=self.translationLang.nllb.code)
 
         except Exception as e:
-            print(traceback.format_exc())
             self.release_vram()
+            raise e
+            
 
     def release_vram(self):
         try:
             if torch.cuda.is_available():
                 if "ct2" not in self.modelPath:
                     try:
-                        device = torch.device("cpu")
-                        self.transModel.to(device)
+                        if getattr(self, "transModel", None) is not None:
+                            device = torch.device("cpu")
+                            self.transModel.to(device)
                     except Exception as e:
                         print(traceback.format_exc())
                         print("\tself.transModel.to cpu, error: " + str(e))
-                    del self.transTranslator
-                del self.transTokenizer
-                del self.transModel
+                    if getattr(self, "transTranslator", None) is not None:
+                        del self.transTranslator
+                if "ct2" in self.modelPath:
+                    if getattr(self, "transModel", None) is not None and getattr(self.transModel, "unload_model", None) is not None:
+                        self.transModel.unload_model()
+                    
+                if getattr(self, "transTokenizer", None) is not None:
+                    del self.transTokenizer
+                if getattr(self, "transModel", None) is not None:
+                    del self.transModel
                 try:
                     torch.cuda.empty_cache()
                 except Exception as e:
@@ -205,6 +228,7 @@ class TranslationModel:
                 gc.collect()
                 print("release vram end.")
         except Exception as e:
+            print(traceback.format_exc())
             print("Error release vram: " + str(e))
 
 
@@ -257,7 +281,10 @@ class TranslationModel:
                 output = self.transTranslator(self.mt5Prefix + text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams) #, num_return_sequences=2
                 result = output[0]['generated_text']
             elif "ALMA" in self.modelPath:
-                output = self.transTranslator(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": ", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams, return_full_text=False)
+                if "GPTQ" in self.modelPath:
+                    output = self.transTranslator(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": ", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams, return_full_text=False)
+                elif "GGUF" in self.modelPath:
+                    output = self.transTranslator(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": ", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams, return_full_text=False)
                 result = output[0]['generated_text']
             else: #M2M100 & NLLB
                 output = self.transTranslator(text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
@@ -332,7 +359,8 @@ def download_model(
         "vocab.json", #m2m100
         "model.safetensors",
         "quantize_config.json",
-        "tokenizer.model"
+        "tokenizer.model",
+        "vocabulary.json"
     ]
 
     kwargs = {

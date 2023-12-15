@@ -250,6 +250,7 @@ class WhisperTranscriber:
             vadPadding:          float = decodeOptions.pop("vadPadding", self.app_config.vad_padding)
             vadPromptWindow:     float = decodeOptions.pop("vadPromptWindow", self.app_config.vad_prompt_window)
             vadInitialPromptMode: str  = decodeOptions.pop("vadInitialPromptMode", self.app_config.vad_initial_prompt_mode)
+            self.vad_process_timeout:    float = decodeOptions.pop("vadPocessTimeout", self.vad_process_timeout)
             
             diarization:              bool = decodeOptions.pop("diarization", False)
             diarization_speakers:     int  = decodeOptions.pop("diarization_speakers", 2)
@@ -832,7 +833,9 @@ def create_ui(app_config: ApplicationConfig):
     m2m100_models = app_config.get_model_names("m2m100")
     mt5_models = app_config.get_model_names("mt5")
     ALMA_models = app_config.get_model_names("ALMA")
-    
+    if not torch.cuda.is_available(): #Due to the poor support of GPTQ for CPUs, the execution time per iteration exceeds a thousand seconds when operating on a CPU. Therefore, when the system does not support a GPU, the GPTQ model is removed from the list.
+        ALMA_models = list(filter(lambda alma: "GPTQ" not in alma, ALMA_models))
+
     common_whisper_inputs = lambda : {
         gr.Dropdown(label="Whisper - Model (for audio)", choices=whisper_models, value=app_config.default_model_name, elem_id="whisperModelName"),
         gr.Dropdown(label="Whisper - Language", choices=sorted(get_lang_whisper_names()), value=app_config.language, elem_id="whisperLangName"),
@@ -864,6 +867,7 @@ def create_ui(app_config: ApplicationConfig):
         gr.Dropdown(choices=["none", "silero-vad", "silero-vad-skip-gaps", "silero-vad-expand-into-gaps", "periodic-vad"], value=app_config.default_vad, label="VAD", elem_id="vad"),
         gr.Number(label="VAD - Merge Window (s)", precision=0, value=app_config.vad_merge_window, elem_id="vadMergeWindow"),
         gr.Number(label="VAD - Max Merge Size (s)", precision=0, value=app_config.vad_max_merge_size, elem_id="vadMaxMergeSize"),
+        gr.Number(label="VAD - Process Timeout (s)", precision=0, value=app_config.vad_process_timeout, elem_id="vadPocessTimeout"),
     }
     
     common_word_timestamps_inputs = lambda : {

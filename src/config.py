@@ -5,7 +5,7 @@ from typing import List, Dict, Literal
 
 
 class ModelConfig:
-    def __init__(self, name: str, url: str, path: str = None, type: str = "whisper", tokenizer_url: str = None, revision: str = None):
+    def __init__(self, name: str, url: str, path: str = None, type: str = "whisper", tokenizer_url: str = None, revision: str = None, model_file: str = None,):
         """
         Initialize a model configuration.
 
@@ -17,6 +17,7 @@ class ModelConfig:
             It can be a branch name, a tag name, or a commit id, 
             since we use a git-based system for storing models and other artifacts on huggingface.co, 
             so revision can be any identifier allowed by git.
+        model_file: The name of the model file in repo or directory.[from marella/ctransformers] 
         """
         self.name = name
         self.url = url
@@ -24,6 +25,7 @@ class ModelConfig:
         self.type = type
         self.tokenizer_url = tokenizer_url
         self.revision = revision
+        self.model_file = model_file
 
 VAD_INITIAL_PROMPT_MODE_VALUES=["prepend_all_segments", "prepend_first_segment", "json_prompt_mode"]
 

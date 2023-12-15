@@ -67,6 +67,9 @@ If set, any adjacent speech sections that are at most this number of seconds apa
 ## VAD - Max Merge Size (s)
 Disables merging of adjacent speech sections if they are this number of seconds long.
 
+## VAD - Process Timeout (s)
+This configures the number of seconds until a process is killed due to inactivity, freeing RAM and video memory. The default value is 30 minutes.
+
 ## VAD - Padding (s)
 The number of seconds (floating point) to add to the beginning and end of each speech section. Setting this to a number
 larger than zero ensures that Whisper is more likely to correctly transcribe a sentence in the beginning of 

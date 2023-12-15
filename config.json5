@@ -203,6 +203,32 @@
         "url": "TheBloke/ALMA-13B-GPTQ",
         "type": "huggingface"
       },
+      {
+        "name": "ALMA-7B-GGUF-Q4_K_M/TheBloke",
+        "url": "TheBloke/ALMA-7B-GGUF",
+        "type": "huggingface",
+        "model_file": "alma-7b.Q4_K_M.gguf",
+        "tokenizer_url": "haoranxu/ALMA-7B"
+      },
+      {
+        "name": "ALMA-13B-GGUF-Q4_K_M/TheBloke",
+        "url": "TheBloke/ALMA-13B-GGUF",
+        "type": "huggingface",
+        "model_file": "alma-13b.Q4_K_M.gguf",
+        "tokenizer_url": "haoranxu/ALMA-13B"
+      },
+      {
+        "name": "ALMA-7B-ct2:int8_float16/avan",
+        "url": "avans06/ALMA-7B-ct2-int8_float16",
+        "type": "huggingface",
+        "tokenizer_url": "haoranxu/ALMA-7B"
+      },
+      {
+        "name": "ALMA-13B-ct2:int8_float16/avan",
+        "url": "avans06/ALMA-13B-ct2-int8_float16",
+        "type": "huggingface",
+        "tokenizer_url": "haoranxu/ALMA-13B"
+      },
     ]
   },
   // Configuration options that will be used if they are not specified in the command line arguments.

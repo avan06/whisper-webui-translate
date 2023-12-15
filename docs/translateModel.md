@@ -20,7 +20,7 @@ M2M100 is a multilingual translation model introduced by Facebook AI in October 
 
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
-| [facebook/m2m100_418M](https://huggingface.co/facebook/m2m100_418M) | 480M | 1.94 GB | float32 | ≈2 GB |
+| [facebook/m2m100_418M](https://huggingface.co/facebook/m2m100_418M) | 418M | 1.94 GB | float32 | ≈2 GB |
 | [facebook/m2m100_1.2B](https://huggingface.co/facebook/m2m100_1.2B) | 1.2B | 4.96 GB | float32 | ≈5 GB |
 | [facebook/m2m100-12B-last-ckpt](https://huggingface.co/facebook/m2m100-12B-last-ckpt) | 12B | 47.2 GB | float32 | N/A |
 
@@ -28,7 +28,7 @@ M2M100 is a multilingual translation model introduced by Facebook AI in October 
 
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
-| [michaelfeil/ct2fast-m2m100_418M](https://huggingface.co/michaelfeil/ct2fast-m2m100_418M) | 480M | 970 MB | float16 | ≈0.6 GB |
+| [michaelfeil/ct2fast-m2m100_418M](https://huggingface.co/michaelfeil/ct2fast-m2m100_418M) | 418M | 970 MB | float16 | ≈0.6 GB |
 | [michaelfeil/ct2fast-m2m100_1.2B](https://huggingface.co/michaelfeil/ct2fast-m2m100_1.2B) | 1.2B | 2.48 GB | float16 | ≈1.3 GB |
 | [michaelfeil/ct2fast-m2m100-12B-last-ckpt](https://huggingface.co/michaelfeil/ct2fast-m2m100-12B-last-ckpt) | 12B | 23.6 GB | float16 | N/A |
 
@@ -73,7 +73,6 @@ The 'mt5-zh-ja-en-trimmed' model is finetuned from Google's 'mt5-base' model. Th
 
 ## ALMA
 
-ALMA is an excellent translation model, but it is strongly discouraged to operate it on CPU.  
 ALMA is a many-to-many LLM-based translation model introduced by Haoran Xu and colleagues in September 2023. It is based on the fine-tuning of a large language model (LLaMA-2). The approach used for this model is referred to as Advanced Language Model-based trAnslator (ALMA). The paper is titled "`A Paradigm Shift in Machine Translation: Boosting Translation Performance of Large Language Models`" ([arXiv:2309.11674](https://arxiv.org/abs/2309.11674)).  
 The official support for ALMA currently includes 10 language directions: English↔German, English↔Czech, English↔Icelandic, English↔Chinese, and English↔Russian. However, the author hints that there might be surprises in other directions, so there are currently no restrictions on the languages that ALMA can be chosen for in the web UI.  
 
@@ -84,12 +83,33 @@ The official support for ALMA currently includes 10 language directions: English
 
 ## ALMA-GPTQ
 
+Due to the poor support of GPTQ for CPUs, the execution time per iteration exceeds a thousand seconds when operating on a CPU. Therefore, it is strongly discouraged to operate it on CPU.  
 GPTQ is a technique used to quantize the parameters of large language models into integer formats such as int8 or int4. Although the quantization process may lead to a loss in model performance, it significantly reduces both file size and the required VRAM.  
 
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
 | [TheBloke/ALMA-7B-GPTQ](https://huggingface.co/TheBloke/ALMA-7B-GPTQ) | 7B | 3.9 GB | 4 Bits | ≈4.3 GB |
-| [TheBloke/ALMA-13B-GPTQ](https://huggingface.co/TheBloke/ALMA-13B-GPTQ) | 13B | 7.26 GB | 4 Bits | ≈8.1 |
+| [TheBloke/ALMA-13B-GPTQ](https://huggingface.co/TheBloke/ALMA-13B-GPTQ) | 13B | 7.26 GB | 4 Bits | ≈8.4 GB |
+
+## ALMA-GGUF
+
+[GGUF](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md) is a new format introduced by the llama.cpp team on August 21st 2023. It is a replacement for GGML, which is no longer supported by llama.cpp.
+GGUF is a file format for storing models for inference with GGML and executors based on GGML. GGUF is a binary format that is designed for fast loading and saving of models, and for ease of reading. Models are traditionally developed using PyTorch or another framework, and then converted to GGUF for use in GGML.  
+[k-quants](https://github.com/ggerganov/llama.cpp/pull/1684): a series of 2-6 bit quantization methods, along with quantization mixes
+
+| Name | Parameters | Size | type/quantize | Required VRAM |
+|------|------------|------|---------------|---------------|
+| [TheBloke/ALMA-7B-GGUF-Q4_K_M](https://huggingface.co/TheBloke/ALMA-7B-GGUF) | 7B | 4.08 GB | Q4_K_M(4 Bits medium) | ≈5.3 GB |
+| [TheBloke/ALMA-13B-GGUF-Q4_K_M](https://huggingface.co/TheBloke/ALMA-13B-GGUF) | 13B | 7.87 GB | Q4_K_M(4 Bits medium) | ≈9.3 GB |
+
+## ALMA-CTranslate2
+
+[CTranslate2](https://opennmt.net/CTranslate2/) does not currently support 4-bit quantization. Currently, it can only use int8_float16 quantization, so the file size and required VRAM will be larger than the GPTQ model quantized with 4 bits. However, it runs much faster on the CPU than GPTQ. If you plan to run ALMA in an environment without a GPU, you may consider choosing the CTranslate2 version of the ALMA model.  
+
+| Name | Parameters | Size | type/quantize | Required VRAM |
+|------|------------|------|---------------|---------------|
+| [avans06/ALMA-7B-ct2-int8_float16](https://huggingface.co/avans06/ALMA-7B-ct2-int8_float16) | 7B | 6.74 GB | int8_float16 | ≈6.6 GB |
+| [avans06/ALMA-13B-ct2-int8_float16](https://huggingface.co/avans06/ALMA-13B-ct2-int8_float16) | 13B | 13 GB | int8_float16 | ≈12.6 GB |
 
 
 # Options

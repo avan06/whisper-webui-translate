@@ -17,7 +17,9 @@ srt
 torch
 https://github.com/pyannote/pyannote-audio/archive/refs/heads/develop.zip
 
-# Needed by ALMA(GPTQ)
+# Needed by ALMA-GPTQ
 accelerate
 auto-gptq
 optimum
+# Needed by ALMA-GGUL
+ctransformers[cuda]
