@@ -133,12 +133,11 @@ def write_srt_original(transcript: Iterator[dict], file: TextIO,
         if original is not None: print(f"{original}",
             file=file,
             flush=True)
-        
-        if bilingual:
-            text = segment['text'].replace('-->', '->')
-            print(f"{text}\n",
-            file=file,
-            flush=True)
+
+        text = segment['text'].replace('-->', '->')
+        print(f"{text}\n" if bilingual else "",
+        file=file,
+        flush=True)
 
 def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: int = None, highlight_words: bool = False): 
     for segment in transcript:

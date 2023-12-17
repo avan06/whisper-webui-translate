@@ -255,7 +255,7 @@ class WhisperTranscriber:
             self.whisperSegmentsFilters: List[List] = []
             inputFilter: bool = decodeOptions.pop("whisperSegmentsFilter", None)
             inputFilters = []
-            for idx in range(0,len(self.app_config.whisper_segments_filters),1):
+            for idx in range(1,len(self.app_config.whisper_segments_filters) + 1,1):
                 inputFilters.append(decodeOptions.pop(f"whisperSegmentsFilter{idx}", None))
             inputFilters = filter(None, inputFilters)
             if inputFilter:
@@ -1064,12 +1064,12 @@ def create_ui(app_config: ApplicationConfig):
             with gr.Column():
                 simpleOutput = common_output()
         gr.Markdown(uiArticle)
-        if translateModelMd is not None:
-            with gr.Accordion("docs/translateModel.md", open=False):    
-                gr.Markdown(translateModelMd)
         if optionsMd is not None:
             with gr.Accordion("docs/options.md", open=False):    
                 gr.Markdown(optionsMd)
+        if translateModelMd is not None:
+            with gr.Accordion("docs/translateModel.md", open=False):    
+                gr.Markdown(translateModelMd)
         if readmeMd is not None:
             with gr.Accordion("README.md", open=False):    
                 gr.Markdown(readmeMd)
@@ -1158,11 +1158,13 @@ def create_ui(app_config: ApplicationConfig):
                         fullInputDict.update(common_translation_inputs())
             with gr.Column():
                 fullOutput = common_output()
-        with gr.Accordion("Article"):
-            gr.Markdown(uiArticle)
+        gr.Markdown(uiArticle)
         if optionsMd is not None:
             with gr.Accordion("docs/options.md", open=False):    
                 gr.Markdown(optionsMd)
+        if translateModelMd is not None:
+            with gr.Accordion("docs/translateModel.md", open=False):    
+                gr.Markdown(translateModelMd)
         if readmeMd is not None:
             with gr.Accordion("README.md", open=False):    
                 gr.Markdown(readmeMd)
