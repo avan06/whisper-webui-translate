@@ -159,6 +159,10 @@ class TranslationModel:
                     self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath)
                     self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
                     self.transModel = ctranslate2.Generator(self.modelPath, compute_type="auto", device=self.device)
+                elif "madlad400" in self.modelPath:
+                    self.madlad400Prefix = "<2" + self.translationLang.whisper.code + "> "
+                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.m2m100.code)
+                    self.transModel = ctranslate2.Translator(self.modelPath, compute_type="auto", device=self.device)
             elif "mt5" in self.modelPath:
                 self.mt5Prefix = self.whisperLang.whisper.code + "2" + self.translationLang.whisper.code + ": "
                 self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False) #requires spiece.model
@@ -277,6 +281,11 @@ class TranslationModel:
                     output = self.transModel.generate_batch([source], max_length=max_length, max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams, sampling_temperature=0.7, sampling_topp=0.9, repetition_penalty=1.1, include_prompt_in_result=False) #, sampling_topk=40
                     target = output[0]
                     result = self.transTokenizer.decode(target.sequences_ids[0])
+                elif "madlad400" in self.modelPath:
+                    source = self.transTokenizer.convert_ids_to_tokens(self.transTokenizer.encode(self.madlad400Prefix + text))
+                    output = self.transModel.translate_batch([source], max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams)
+                    target = output[0].hypotheses[0]
+                    result = self.transTokenizer.decode(self.transTokenizer.convert_tokens_to_ids(target))
             elif "mt5" in self.modelPath:
                 output = self.transTranslator(self.mt5Prefix + text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams) #, num_return_sequences=2
                 result = output[0]['generated_text']
@@ -299,7 +308,8 @@ class TranslationModel:
 _MODELS = ["nllb-200", 
            "m2m100",
            "mt5",
-           "ALMA"]
+           "ALMA",
+           "madlad400"]
 
 def check_model_name(name):
     return any(allowed_name in name for allowed_name in _MODELS)

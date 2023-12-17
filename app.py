@@ -233,6 +233,8 @@ class WhisperTranscriber:
             mt5LangName:      str = decodeOptions.pop("mt5LangName")
             ALMAModelName:    str = decodeOptions.pop("ALMAModelName")
             ALMALangName:     str = decodeOptions.pop("ALMALangName")
+            madlad400ModelName: str = decodeOptions.pop("madlad400ModelName")
+            madlad400LangName:  str = decodeOptions.pop("madlad400LangName")
             
             translationBatchSize:         int = decodeOptions.pop("translationBatchSize")
             translationNoRepeatNgramSize: int = decodeOptions.pop("translationNoRepeatNgramSize")
@@ -368,6 +370,10 @@ class WhisperTranscriber:
                     selectedModelName = ALMAModelName if ALMAModelName is not None and len(ALMAModelName) > 0 else "ALMA-13B-GPTQ/TheBloke"
                     selectedModel = next((modelConfig for modelConfig in self.app_config.models["ALMA"] if modelConfig.name == selectedModelName), None)
                     translationLang = get_lang_from_m2m100_name(ALMALangName)
+                elif translateInput == "madlad400" and madlad400LangName is not None and len(madlad400LangName) > 0:
+                    selectedModelName = madlad400ModelName if madlad400ModelName is not None and len(madlad400ModelName) > 0 else "madlad400-10b-mt-ct2-int8_float16"
+                    selectedModel = next((modelConfig for modelConfig in self.app_config.models["madlad400"] if modelConfig.name == selectedModelName), None)
+                    translationLang = get_lang_from_m2m100_name(madlad400LangName)
 
                 if translationLang is not None:
                     translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=whisperLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams)
@@ -929,6 +935,7 @@ def create_ui(app_config: ApplicationConfig):
     m2m100_models = app_config.get_model_names("m2m100")
     mt5_models = app_config.get_model_names("mt5")
     ALMA_models = app_config.get_model_names("ALMA")
+    madlad400_models = app_config.get_model_names("madlad400")
     if not torch.cuda.is_available(): #Due to the poor support of GPTQ for CPUs, the execution time per iteration exceeds a thousand seconds when operating on a CPU. Therefore, when the system does not support a GPU, the GPTQ model is removed from the list.
         ALMA_models = list(filter(lambda alma: "GPTQ" not in alma, ALMA_models))
 
@@ -951,6 +958,10 @@ def create_ui(app_config: ApplicationConfig):
     common_ALMA_inputs = lambda : {
         gr.Dropdown(label="ALMA - Model (for translate)", choices=ALMA_models, elem_id="ALMAModelName"),
         gr.Dropdown(label="ALMA - Language", choices=sort_lang_by_whisper_codes(["en", "de", "cs", "is", "ru", "zh", "ja"]), elem_id="ALMALangName"),
+    }
+    common_madlad400_inputs = lambda : {
+        gr.Dropdown(label="madlad400 - Model (for translate)", choices=madlad400_models, elem_id="madlad400ModelName"),
+        gr.Dropdown(label="madlad400 - Language", choices=sorted(get_lang_m2m100_names()), elem_id="madlad400LangName"),
     }
     
     common_translation_inputs = lambda : {
@@ -1036,10 +1047,14 @@ def create_ui(app_config: ApplicationConfig):
                     with gr.Tab(label="ALMA") as simpleALMATab:
                         with gr.Row():
                             simpleInputDict.update(common_ALMA_inputs())
+                    with gr.Tab(label="madlad400") as simplemadlad400Tab:
+                        with gr.Row():
+                            simpleInputDict.update(common_madlad400_inputs())
                     simpleM2M100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [simpleTranslateInput] )
                     simpleNllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [simpleTranslateInput] )
                     simpleMT5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [simpleTranslateInput] )
                     simpleALMATab.select(fn=lambda: "ALMA", inputs = [], outputs= [simpleTranslateInput] )
+                    simplemadlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [simpleTranslateInput] )
                 with gr.Column():
                     with gr.Tab(label="URL") as simpleUrlTab:
                         simpleInputDict.update({gr.Text(label="URL (YouTube, etc.)", elem_id = "urlData")})
@@ -1103,10 +1118,14 @@ def create_ui(app_config: ApplicationConfig):
                     with gr.Tab(label="ALMA") as fullALMATab:
                         with gr.Row():
                             fullInputDict.update(common_ALMA_inputs())
+                    with gr.Tab(label="madlad400") as fullmadlad400Tab:
+                        with gr.Row():
+                            fullInputDict.update(common_madlad400_inputs())
                     fullM2M100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [fullTranslateInput] )
                     fullNllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [fullTranslateInput] )
                     fullMT5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [fullTranslateInput] )
                     fullALMATab.select(fn=lambda: "ALMA", inputs = [], outputs= [fullTranslateInput] )
+                    fullmadlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [fullTranslateInput] )
                 with gr.Column():
                     with gr.Tab(label="URL") as fullUrlTab:
                         fullInputDict.update({gr.Text(label="URL (YouTube, etc.)", elem_id = "urlData")})

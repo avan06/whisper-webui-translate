@@ -229,6 +229,20 @@
         "type": "huggingface",
         "tokenizer_url": "haoranxu/ALMA-13B"
       },
+    ],
+    "madlad400": [
+      {
+        "name": "madlad400-3b-mt-ct2-int8_float16/SoybeanMilk",
+        "url": "SoybeanMilk/madlad400-3b-mt-ct2-int8_float16",
+        "type": "huggingface",
+        "tokenizer_url": "jbochi/madlad400-3b-mt"
+      },
+      {
+        "name": "madlad400-10b-mt-ct2-int8_float16/SoybeanMilk",
+        "url": "SoybeanMilk/madlad400-10b-mt-ct2-int8_float16",
+        "type": "huggingface",
+        "tokenizer_url": "jbochi/madlad400-10b-mt"
+      },
     ]
   },
   // Configuration options that will be used if they are not specified in the command line arguments.
