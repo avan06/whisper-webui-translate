@@ -219,7 +219,11 @@ class AbstractTranscription(ABC):
                 perf_end_time = time.perf_counter()
                 print("\tWhisper took {} seconds".format(perf_end_time - perf_start_time))
 
-                adjusted_segments = self.adjust_timestamp(segment_result["segments"], adjust_seconds=segment_start, max_source_time=segment_duration)
+                adjusted_segments: List[Dict[str, Any]] = self.adjust_timestamp(segment_result["segments"], adjust_seconds=segment_start, max_source_time=segment_duration)
+                
+                if len(adjusted_segments) > 0:
+                    adjusted_segments[0]["segment_first"] = True
+                    adjusted_segments[-1]["segment_last"] = True
 
                 # Propagate expand amount to the segments
                 if (segment_expand_amount > 0):

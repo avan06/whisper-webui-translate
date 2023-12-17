@@ -54,7 +54,7 @@ class ApplicationConfig:
                  input_audio_max_duration: int = 600, share: bool = False, server_name: str = None, server_port: int = 7860, 
                  queue_concurrency_count: int = 1, delete_uploaded_files: bool = True,
                  whisper_implementation: str = "whisper", default_model_name: str = "medium", 
-                 default_nllb_model_name: str = "distilled-600M", default_vad: str = "silero-vad", 
+                 default_vad: str = "silero-vad", 
                  vad_parallel_devices: str = "", vad_cpu_cores: int = 1, vad_process_timeout: int = 1800, 
                  auto_parallel: bool = False, output_dir: str = None,
                  model_dir: str = None, device: str = None, 
@@ -71,7 +71,7 @@ class ApplicationConfig:
                  logprob_threshold: float = -1.0, no_speech_threshold: float = 0.6,
                  repetition_penalty: float = 1.0, no_repeat_ngram_size: int = 0,
                  # Word timestamp settings
-                 word_timestamps: bool = False, prepend_punctuations: str = "\"\'“¿([{-",
+                 word_timestamps: bool = True, prepend_punctuations: str = "\"\'“¿([{-",
                  append_punctuations: str = "\"\'.。,，!！?？:：”)]}、", 
                  highlight_words: bool = False,
                  # Diarization
@@ -82,6 +82,9 @@ class ApplicationConfig:
                  translation_batch_size: int = 2,
                  translation_no_repeat_ngram_size: int = 3,
                  translation_num_beams: int = 2,
+                 # Whisper Segments Filter
+                 whisper_segments_filter: bool = False,
+                 whisper_segments_filters: List[str] = [],
                  ):
         
         self.models = models
@@ -96,7 +99,6 @@ class ApplicationConfig:
 
         self.whisper_implementation = whisper_implementation
         self.default_model_name = default_model_name
-        self.default_nllb_model_name = default_nllb_model_name
         self.default_vad = default_vad
         self.vad_parallel_devices = vad_parallel_devices
         self.vad_cpu_cores = vad_cpu_cores
@@ -148,6 +150,9 @@ class ApplicationConfig:
         self.translation_batch_size = translation_batch_size
         self.translation_no_repeat_ngram_size = translation_no_repeat_ngram_size
         self.translation_num_beams = translation_num_beams
+        # Whisper Segments Filter
+        self.whisper_segments_filter = whisper_segments_filter
+        self.whisper_segments_filters = whisper_segments_filters
 
     def get_model_names(self, name: str):
         return [ x.name for x in self.models[name] ]

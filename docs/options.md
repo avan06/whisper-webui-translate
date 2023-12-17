@@ -166,6 +166,24 @@ Penalty applied to the score of previously generated tokens (set > 1 to penalize
 This parameter only takes effect in [faster-whisper (ctranslate2)](https://github.com/SYSTRAN/faster-whisper/issues/478).
 Prevent repetitions of ngrams with this size (set 0 to disable).
 
+## Whisper Filter options
+**This is an experimental feature and may potentially filter out correct transcription results.**  
+
+when enabled, can effectively improve the whisper hallucination, especially for the large-v3 version of the whisper model.  
+
+Observations for transcriptions:
+1. duration: calculated by subtracting start from end, it might indicate hallucinated results when inversely proportional to text length.
+1. segment_last: the last result for each segment during VAD transcription has a certain probability of being a hallucinated result.
+1. avg_logprob: average log probability, ranging from logprob_threshold (default: -1) to 0, is better when a larger value. A value lower than -0.9 might suggest a poor result.
+1. compression_ratio: gzip compression ratio, ranging from 0 to compression_ratio_threshold (default: 2.4), a higher positive value is preferable. If it is lower than 0.9, it might indicate suboptimal results.
+1. no_speech_prob: no_speech(<|nospeech|> token) probability, ranging from 0 to no_speech_threshold (default: 0.6), a smaller positive value is preferable. If it exceeds 0.1, it might suggest suboptimal results.
+
+Four sets of filtering conditions have now been established, utilizing text length, duration length, as well as the avg_logprob, compression_ratio, and no_speech_prob parameters returned by Whisper.
+1. avg_logprob < -0.9
+1. (durationLen < 1.5 || segment_last), textLen > 5, avg_logprob < -0.4, no_speech_prob > 0.5
+1. (durationLen < 1.5 || segment_last), textLen > 5, avg_logprob < -0.4, no_speech_prob > 0.07, compression_ratio < 0.9
+1. (durationLen < 1.5 || segment_last), compression_ratio < 0.9, no_speech_prob > 0.1
+
 ## Translation - Batch Size
 - transformers: batch_size  
 When the pipeline will use DataLoader (when passing a dataset, on GPU for a Pytorch model), the size of the batch to use, for inference this is not always beneficial.

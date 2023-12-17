@@ -317,9 +317,13 @@
   "logprob_threshold": -1.0,
   // If the probability of the <no-speech> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence
   "no_speech_threshold": 0.6,
+  // [faster-whisper] The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0.
+  "repetition_penalty": 1.0,
+  // [faster-whisper] The model ensures that a sequence of words of no_repeat_ngram_size isn’t repeated in the output sequence. If specified, it must be a positive integer greater than 1.
+  "no_repeat_ngram_size": 0,
 
   // (experimental) extract word-level timestamps and refine the results based on them
-  "word_timestamps": false, 
+  "word_timestamps": true, 
   // if word_timestamps is True, merge these punctuation symbols with the next word
   "prepend_punctuations": "\"\'“¿([{-",
   // if word_timestamps is True, merge these punctuation symbols with the previous word
@@ -339,4 +343,20 @@
   "diarization_max_speakers": 8,
   // The number of seconds before inactivate processes are terminated. Use 0 to close processes immediately, or None for no timeout.
   "diarization_process_timeout": 60,
+
+  // Whisper Segments Filter
+  "whisper_segments_filter": false,
+  "whisper_segments_filters": [
+    "avg_logprob < -0.9",
+    "(durationLen < 1.5 || segment_last), textLen > 5, avg_logprob < -0.4, no_speech_prob > 0.5",
+    "(durationLen < 1.5 || segment_last), textLen > 5, avg_logprob < -0.4, no_speech_prob > 0.07, compression_ratio < 0.9",
+    "(durationLen < 1.5 || segment_last), compression_ratio < 0.9, no_speech_prob > 0.1"
+  ],
+
+  // Translation - The maximum batch size.
+  "translation_batch_size": 2,
+  // Translation - Prevent repetitions of ngrams with this size (set 0 to disable).
+  "translation_no_repeat_ngram_size": 3,
+  // Translation - Beam size (1 for greedy search).
+  "translation_num_beams": 2,
 }

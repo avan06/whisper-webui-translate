@@ -1,7 +1,7 @@
 ﻿from datetime import datetime
 import json
 import math
-from typing import Iterator, Union, List
+from typing import Iterator, Union, List, Dict, Any
 import argparse
 
 from io import StringIO
@@ -244,14 +244,38 @@ class WhisperTranscriber:
             microphoneData: str  = decodeOptions.pop("microphoneData")
             task:           str  = decodeOptions.pop("task")
             
-            vad:                 str   = decodeOptions.pop("vad")
-            vadMergeWindow:      float = decodeOptions.pop("vadMergeWindow")
-            vadMaxMergeSize:     float = decodeOptions.pop("vadMaxMergeSize")
-            vadPadding:          float = decodeOptions.pop("vadPadding", self.app_config.vad_padding)
-            vadPromptWindow:     float = decodeOptions.pop("vadPromptWindow", self.app_config.vad_prompt_window)
-            vadInitialPromptMode: str  = decodeOptions.pop("vadInitialPromptMode", self.app_config.vad_initial_prompt_mode)
-            self.vad_process_timeout:    float = decodeOptions.pop("vadPocessTimeout", self.vad_process_timeout)
+            vad:                      str   = decodeOptions.pop("vad")
+            vadMergeWindow:           float = decodeOptions.pop("vadMergeWindow")
+            vadMaxMergeSize:          float = decodeOptions.pop("vadMaxMergeSize")
+            vadPadding:               float = decodeOptions.pop("vadPadding", self.app_config.vad_padding)
+            vadPromptWindow:          float = decodeOptions.pop("vadPromptWindow", self.app_config.vad_prompt_window)
+            vadInitialPromptMode:     str   = decodeOptions.pop("vadInitialPromptMode", self.app_config.vad_initial_prompt_mode)
+            self.vad_process_timeout: float = decodeOptions.pop("vadPocessTimeout", self.vad_process_timeout)
             
+            self.whisperSegmentsFilters: List[List] = []
+            inputFilter: bool = decodeOptions.pop("whisperSegmentsFilter", None)
+            inputFilters = []
+            for idx in range(0,len(self.app_config.whisper_segments_filters),1):
+                inputFilters.append(decodeOptions.pop(f"whisperSegmentsFilter{idx}", None))
+            inputFilters = filter(None, inputFilters)
+            if inputFilter:
+                for inputFilter in inputFilters:
+                    self.whisperSegmentsFilters.append([])
+                    self.whisperSegmentsFilters[-1].append(inputFilter)
+                    for text in inputFilter.split(","):
+                        result = []
+                        subFilter = [text] if "||" not in text else [strFilter_ for strFilter_ in text.lstrip("(").rstrip(")").split("||") if strFilter_]
+                        for string in subFilter:
+                            conditions = [condition for condition in string.split(" ") if condition]
+                            if len(conditions) == 1 and conditions[0] == "segment_last":
+                                pass
+                            elif len(conditions) == 3:
+                                conditions[-1] = float(conditions[-1])
+                            else:
+                                continue
+                            result.append(conditions)
+                        self.whisperSegmentsFilters[-1].append(result)
+
             diarization:              bool = decodeOptions.pop("diarization", False)
             diarization_speakers:     int  = decodeOptions.pop("diarization_speakers", 2)
             diarization_min_speakers: int  = decodeOptions.pop("diarization_min_speakers", 1)
@@ -388,6 +412,10 @@ class WhisperTranscriber:
 
                     # Transcribe
                     result = self.transcribe_file(model, source.source_path, whisperLangCode, task, vadOptions, scaled_progress_listener, **decodeOptions)
+                    filterLog = result.get("filterLog", None)
+                    filterLogText = [gr.Text.update(visible=False)]
+                    if filterLog:
+                        filterLogText = [gr.Text.update(visible=True, value=filterLog)]
                     if translationModel is not None and whisperLang is None and result["language"] is not None and len(result["language"]) > 0:
                         whisperLang = get_lang_from_whisper_code(result["language"])
                         translationModel.whisperLang = whisperLang
@@ -466,8 +494,8 @@ class WhisperTranscriber:
                             zip.write(download_file, arcname=zip_file_name)
 
                     download.insert(0, downloadAllPath)
-
-                return download, text, vtt
+                
+                return [download, text, vtt] + filterLogText
 
             finally:
                 # Cleanup source
@@ -481,10 +509,10 @@ class WhisperTranscriber:
                             print("Error deleting temporary source file: \n" + source.source_path + ", \n" + str(e))
         
         except ExceededMaximumDuration as e:
-            return [], ("[ERROR]: Maximum remote video length is " + str(e.maxDuration) + "s, file was " + str(e.videoDuration) + "s"), "[ERROR]"
+            return [], "[ERROR]: Maximum remote video length is " + str(e.maxDuration) + "s, file was " + str(e.videoDuration) + "s", "[ERROR]", ""
         except Exception as e:
             print(traceback.format_exc())
-            return [], ("Error occurred during transcribe: " + str(e)), traceback.format_exc()
+            return [], "Error occurred during transcribe: " + str(e), traceback.format_exc(), ""
         
 
     def transcribe_file(self, model: AbstractWhisperContainer, audio_path: str, languageCode: str, task: str = None, 
@@ -549,7 +577,13 @@ class WhisperTranscriber:
             else:
                 # Default VAD
                 result = whisperCallable.invoke(audio_path, 0, None, None, progress_listener=progressListener)
-        
+
+        if self.whisperSegmentsFilters:
+            querySegmentsResult, filterLog = self.filterSegments(result["segments"])     
+            result["segments"] = querySegmentsResult
+            if filterLog:
+                result["filterLog"] = filterLog
+
         # Diarization
         if self.diarization and self.diarization_kwargs:
             print("Diarizing ", audio_path)
@@ -564,6 +598,68 @@ class WhisperTranscriber:
             result = self.diarization.mark_speakers(diarization_result, result)
 
         return result
+    
+    def filterSegments(self, querySegments: List[Dict[str, Any]]):
+        try:
+            if not self.whisperSegmentsFilters: return
+            
+            filterIdx = 0
+            filterLog = []
+            querySegmentsResult = querySegments.copy()
+            for idx in range(len(querySegmentsResult),0,-1):
+                currentID = idx - 1
+                querySegment = querySegmentsResult[currentID]
+                for segmentsFilter in self.whisperSegmentsFilters:
+                    isFilter: bool = True
+                    for idx, strFilter in enumerate(segmentsFilter):
+                        if not isFilter: break
+                        if idx == 0:
+                            filterCondition = strFilter
+                            continue
+
+                        isFilter = True
+                        for subFilter in strFilter:
+                            key: str = subFilter[0]
+                            
+                            if key == "segment_last":
+                                isFilter = querySegment.get(key, None)
+                                if isFilter: break
+                                continue
+                            
+                            sign: str = subFilter[1]
+                            threshold: float = subFilter[2]
+                        
+                            if key == "durationLen":
+                                value = querySegment["end"] - querySegment["start"]
+                            elif key == "textLen":
+                                value = len(querySegment["text"])
+                            else:
+                                value = querySegment[key]
+                            
+                            if sign == "=" or sign == "==":
+                                isFilter = value == threshold
+                            elif sign == ">":
+                                isFilter = value > threshold
+                            elif sign == ">=":
+                                isFilter = value >= threshold
+                            elif sign == "<":
+                                isFilter = value < threshold
+                            elif sign == "<=":
+                                isFilter = value <= threshold
+                            else: isFilter = False
+                            
+                            if isFilter: break
+                    if isFilter: break
+                if isFilter:
+                    filterIdx += 1
+                    filterLog.append(f"filter{filterIdx:03d} [{filterCondition}]:")
+                    filterLog.append(f"\t{querySegment}\n")
+                    del querySegmentsResult[currentID]
+
+            return querySegmentsResult, "\n".join(filterLog)
+        except Exception as e:
+            print(traceback.format_exc())
+            print("Error filter segments: " + str(e))
 
     def _create_progress_listener(self, progress: gr.Progress):
         if (progress is None):
@@ -874,6 +970,11 @@ def create_ui(app_config: ApplicationConfig):
         gr.Checkbox(label="Word Timestamps", value=app_config.word_timestamps, elem_id="word_timestamps"),
         gr.Checkbox(label="Word Timestamps - Highlight Words", value=app_config.highlight_words, elem_id="highlight_words"),
     }
+    
+    common_segments_filter_inputs = lambda : {
+        gr.Checkbox(label="Whisper Segments Filter", value=app_config.whisper_segments_filter, elem_id="whisperSegmentsFilter") if idx == 0 else
+        gr.Text(label=f"Filter {idx}", value=filterStr, elem_id=f"whisperSegmentsFilter{idx}") for idx, filterStr in enumerate([""] + app_config.whisper_segments_filters)
+    }
 
     has_diarization_libs = Diarization.has_libraries()
 
@@ -889,15 +990,30 @@ def create_ui(app_config: ApplicationConfig):
     }
     
     common_output = lambda : [
-        gr.File(label="Download"),
-        gr.Text(label="Transcription", autoscroll=False),
-        gr.Text(label="Segments", autoscroll=False),
+        gr.File(label="Download", elem_id="outputDownload"),
+        gr.Text(label="Transcription", autoscroll=False, show_copy_button=True, interactive=True, elem_id="outputTranscription", elem_classes="scroll-show"),
+        gr.Text(label="Segments", autoscroll=False, show_copy_button=True, interactive=True, elem_id="outputSegments", elem_classes="scroll-show"),
+        gr.Text(label="Filtered segment items", autoscroll=False, visible=False, show_copy_button=True, interactive=True, elem_id="outputFiltered", elem_classes="scroll-show"),
     ]
+    
+    css = """
+.scroll-show textarea {
+    overflow-y: auto !important;
+}
+.scroll-show textarea::-webkit-scrollbar {
+    all: initial !important;
+    background: #f1f1f1 !important;
+}
+.scroll-show textarea::-webkit-scrollbar-thumb {
+    all: initial !important;
+    background: #a8a8a8 !important;
+}
+"""
 
     is_queue_mode = app_config.queue_concurrency_count is not None and app_config.queue_concurrency_count > 0
 
     simpleInputDict = {}
-    
+
     with gr.Blocks() as simpleTranscribe:
         simpleTranslateInput = gr.State(value="m2m100", elem_id = "translateInput")
         simpleSourceInput = gr.State(value="urlData", elem_id = "sourceInput")
@@ -939,6 +1055,8 @@ def create_ui(app_config: ApplicationConfig):
                         simpleInputDict.update(common_vad_inputs())
                     with gr.Accordion("Word Timestamps options", open=False):
                         simpleInputDict.update(common_word_timestamps_inputs())
+                    with gr.Accordion("Whisper Filter options", open=False):
+                        simpleInputDict.update(common_segments_filter_inputs())
                     with gr.Accordion("Diarization options", open=False):
                         simpleInputDict.update(common_diarization_inputs())
                     with gr.Accordion("Translation options", open=False):
@@ -957,7 +1075,7 @@ def create_ui(app_config: ApplicationConfig):
                 gr.Markdown(readmeMd)
         
         simpleInputDict.update({simpleTranslateInput, simpleSourceInput})
-        simpleSubmit.click(fn=ui.transcribe_webui_simple_progress if is_queue_mode else ui.transcribe_webui_simple,
+        simpleSubmit.click(fn=ui.transcribe_webui_simple_progress if is_queue_mode else ui.transcribe_webui_simple, 
                     inputs=simpleInputDict, outputs=simpleOutput)
 
     fullInputDict = {}
@@ -1032,6 +1150,8 @@ def create_ui(app_config: ApplicationConfig):
                                 gr.Number(label="Repetition Penalty", value=app_config.repetition_penalty, elem_id = "repetition_penalty"),
                                 gr.Number(label="No Repeat Ngram Size", value=app_config.no_repeat_ngram_size, precision=0, elem_id = "no_repeat_ngram_size")
                             })
+                    with gr.Accordion("Whisper Segments Filter options", open=False):
+                        fullInputDict.update(common_segments_filter_inputs())
                     with gr.Accordion("Diarization options", open=False):
                         fullInputDict.update(common_diarization_inputs())
                     with gr.Accordion("Translation options", open=False):
@@ -1051,7 +1171,7 @@ def create_ui(app_config: ApplicationConfig):
         fullSubmit.click(fn=ui.transcribe_webui_full_progress if is_queue_mode else ui.transcribe_webui_full,
                     inputs=fullInputDict, outputs=fullOutput)
 
-    demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe], tab_names=["Simple", "Full"])
+    demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe], tab_names=["Simple", "Full"], css=css)
 
     # Queue up the demo
     if is_queue_mode:
