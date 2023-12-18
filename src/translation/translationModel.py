@@ -21,11 +21,12 @@ class TranslationModel:
         batchSize: int = 2,
         noRepeatNgramSize: int = 3,
         numBeams: int = 2,
+        torchDtypeFloat16: bool = True,
         downloadRoot: Optional[str] = None,
         localFilesOnly: bool = False,
         loadModel: bool = False,
     ):
-        """Initializes the M2M100 / Nllb-200 / mt5 model.
+        """Initializes the M2M100 / Nllb-200 / mt5 / ALMA / madlad400 translation model.
 
         Args:
           modelConfig: Config of the model to use (distilled-600M, distilled-1.3B, 
@@ -76,8 +77,10 @@ class TranslationModel:
                 device = "cuda" if "ct2" in self.modelPath else "cuda:0"
             else:
                 device = "cpu"
+                torchDtypeFloat16 = False
 
         self.device = device
+        self.torchDtypeFloat16 = torchDtypeFloat16
 
         if loadModel:
             self.load_model()
@@ -85,8 +88,31 @@ class TranslationModel:
     def load_model(self):
         """
         [from_pretrained]
-        low_cpu_mem_usage(bool, optional)
-        Tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model. This is an experimental feature and a subject to change at any moment.
+        low_cpu_mem_usage(bool, optional):
+            Tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model. This is an experimental feature and a subject to change at any moment.
+        
+        torch_dtype (str or torch.dtype, optional):
+            Override the default torch.dtype and load the model under a specific dtype. The different options are:
+            1. torch.float16 or torch.bfloat16 or torch.float: load in a specified dtype, ignoring the model’s config.torch_dtype if one exists. 
+               If not specified the model will get loaded in torch.float (fp32).
+            2. "auto" - A torch_dtype entry in the config.json file of the model will be attempted to be used. 
+               If this entry isn’t found then next check the dtype of the first weight in the checkpoint that’s of a floating point type and use that as dtype. 
+               This will load the model using the dtype it was saved in at the end of the training. It can’t be used as an indicator of how the model was trained. 
+               Since it could be trained in one of half precision dtypes, but saved in fp32.
+            For some models the dtype they were trained in is unknown - you may try to check the model’s paper or reach out to the authors and 
+            ask them to add this information to the model’s card and to insert the torch_dtype entry in config.json on the hub.
+            
+        device_map (str or Dict[str, Union[int, str, torch.device]] or int or torch.device, optional):
+            A map that specifies where each submodule should go. It doesn’t need to be refined to each parameter/buffer name, 
+            once a given module name is inside, every submodule of it will be sent to the same device. 
+            If we only pass the device (e.g., "cpu", "cuda:1", "mps", or a GPU ordinal rank like 1) on which the model will be allocated, 
+            the device map will map the entire model to this device. Passing device_map = 0 means put the whole model on GPU 0.
+            To have Accelerate compute the most optimized device_map automatically, set device_map="auto". For more information about each option see designing a device map.
+        
+        load_in_8bit (bool, optional, defaults to False)
+            If True, will convert the loaded model into mixed-8bit quantized model. To use this feature please install bitsandbytes (pip install -U bitsandbytes).
+        load_in_4bit (bool, optional, defaults to False)
+            If True, will convert the loaded model into 4bit precision quantized model. To use this feature install the latest version of bitsandbytes (pip install -U bitsandbytes).
         
         [transformers.AutoTokenizer.from_pretrained]
         use_fast (bool, optional, defaults to True):
@@ -166,7 +192,7 @@ class TranslationModel:
             elif "mt5" in self.modelPath:
                 self.mt5Prefix = self.whisperLang.whisper.code + "2" + self.translationLang.whisper.code + ": "
                 self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False) #requires spiece.model
-                self.transModel = transformers.MT5ForConditionalGeneration.from_pretrained(self.modelPath, low_cpu_mem_usage=True)
+                self.transModel = transformers.MT5ForConditionalGeneration.from_pretrained(self.modelPath, low_cpu_mem_usage=True, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto")
                 self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
             elif "ALMA" in self.modelPath:
                 self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
@@ -185,18 +211,25 @@ class TranslationModel:
                     import ctransformers
                     self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url)
                     if self.device == "cpu":
-                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file)
+                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file, low_cpu_mem_usage=True)
                     else:
-                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file, gpu_layers=50)
-                self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, tokenizer=self.transTokenizer, do_sample=True, temperature=0.7, top_k=40, top_p=0.95, repetition_penalty=1.1)
+                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file, gpu_layers=50, low_cpu_mem_usage=True)
+                else:
+                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
+                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto", low_cpu_mem_usage=True) #, device_map="auto"
+                self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, device=self.device if "GPTQ" not in self.modelPath and "GGUF" not in self.modelPath else None, tokenizer=self.transTokenizer, do_sample=True, temperature=0.7, top_k=40, top_p=0.95, repetition_penalty=1.1)
+            elif "madlad400" in self.modelPath:
+                self.madlad400Prefix = "<2" + self.translationLang.whisper.code + "> "
+                self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False)
+                self.transModel = transformers.T5ForConditionalGeneration.from_pretrained(self.modelPath, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto", low_cpu_mem_usage=True) #, device_map="auto"
+                self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
             else:
                 self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath)
-                self.transModel = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.modelPath)
+                self.transModel = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.modelPath, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto")
                 if "m2m100" in self.modelPath:
                     self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.m2m100.code, tgt_lang=self.translationLang.m2m100.code)
                 else: #NLLB
                     self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.nllb.code, tgt_lang=self.translationLang.nllb.code)
-
         except Exception as e:
             self.release_vram()
             raise e
@@ -223,13 +256,13 @@ class TranslationModel:
                     del self.transTokenizer
                 if getattr(self, "transModel", None) is not None:
                     del self.transModel
+                import gc
+                gc.collect()
                 try:
                     torch.cuda.empty_cache()
                 except Exception as e:
                     print(traceback.format_exc())
                     print("\tcuda empty cache, error: " + str(e))
-                import gc
-                gc.collect()
                 print("release vram end.")
         except Exception as e:
             print(traceback.format_exc())
@@ -294,6 +327,12 @@ class TranslationModel:
                     output = self.transTranslator(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": ", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams, return_full_text=False)
                 elif "GGUF" in self.modelPath:
                     output = self.transTranslator(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": ", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams, return_full_text=False)
+                else:
+                    output = self.transTranslator(self.ALMAPrefix + text + "\n" + self.translationLang.whisper.names[0] + ": ", max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams, return_full_text=False)
+                    
+                result = output[0]['generated_text']
+            elif "madlad400" in self.modelPath:
+                output = self.transTranslator(self.madlad400Prefix + text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams) #, num_return_sequences=2
                 result = output[0]['generated_text']
             else: #M2M100 & NLLB
                 output = self.transTranslator(text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
@@ -356,9 +395,6 @@ def download_model(
         "pytorch_model.bin",
         "pytorch_model.bin.index.json",
         "pytorch_model-*.bin",
-        "pytorch_model-00001-of-00003.bin",
-        "pytorch_model-00002-of-00003.bin",
-        "pytorch_model-00003-of-00003.bin",
         "sentencepiece.bpe.model",
         "tokenizer.json",
         "tokenizer_config.json",
@@ -368,6 +404,8 @@ def download_model(
         "spiece.model",
         "vocab.json", #m2m100
         "model.safetensors",
+        "model-*.safetensors",
+        "model.safetensors.index.json",
         "quantize_config.json",
         "tokenizer.model",
         "vocabulary.json"

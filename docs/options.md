@@ -201,3 +201,7 @@ Prevent repetitions of ngrams with this size (set 0 to disable).
 Number of beams for beam search that will be used by default in the generate method of the model. 1 means no beam search.
 - ctranslate2: beam_size  
 Beam size (1 for greedy search).
+
+## Translation - Torch Dtype float16
+- transformers: torch_dtype=torch.float16  
+Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models such as Ctranslate2, GPTQ, GGUF)

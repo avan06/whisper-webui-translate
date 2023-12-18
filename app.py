@@ -236,9 +236,10 @@ class WhisperTranscriber:
             madlad400ModelName: str = decodeOptions.pop("madlad400ModelName")
             madlad400LangName:  str = decodeOptions.pop("madlad400LangName")
             
-            translationBatchSize:         int = decodeOptions.pop("translationBatchSize")
-            translationNoRepeatNgramSize: int = decodeOptions.pop("translationNoRepeatNgramSize")
-            translationNumBeams:          int = decodeOptions.pop("translationNumBeams")
+            translationBatchSize:         int  = decodeOptions.pop("translationBatchSize")
+            translationNoRepeatNgramSize: int  = decodeOptions.pop("translationNoRepeatNgramSize")
+            translationNumBeams:          int  = decodeOptions.pop("translationNumBeams")
+            translationTorchDtypeFloat16: bool = decodeOptions.pop("translationTorchDtypeFloat16")
             
             sourceInput:    str  = decodeOptions.pop("sourceInput")
             urlData:        str  = decodeOptions.pop("urlData")
@@ -367,16 +368,16 @@ class WhisperTranscriber:
                     selectedModel = next((modelConfig for modelConfig in self.app_config.models["mt5"] if modelConfig.name == selectedModelName), None)
                     translationLang = get_lang_from_m2m100_name(mt5LangName)
                 elif translateInput == "ALMA" and ALMALangName is not None and len(ALMALangName) > 0:
-                    selectedModelName = ALMAModelName if ALMAModelName is not None and len(ALMAModelName) > 0 else "ALMA-13B-GPTQ/TheBloke"
+                    selectedModelName = ALMAModelName if ALMAModelName is not None and len(ALMAModelName) > 0 else "ALMA-7B-ct2:int8_float16/avan"
                     selectedModel = next((modelConfig for modelConfig in self.app_config.models["ALMA"] if modelConfig.name == selectedModelName), None)
                     translationLang = get_lang_from_m2m100_name(ALMALangName)
                 elif translateInput == "madlad400" and madlad400LangName is not None and len(madlad400LangName) > 0:
-                    selectedModelName = madlad400ModelName if madlad400ModelName is not None and len(madlad400ModelName) > 0 else "madlad400-10b-mt-ct2-int8_float16"
+                    selectedModelName = madlad400ModelName if madlad400ModelName is not None and len(madlad400ModelName) > 0 else "madlad400-3b-mt-ct2-int8_float16/SoybeanMilk"
                     selectedModel = next((modelConfig for modelConfig in self.app_config.models["madlad400"] if modelConfig.name == selectedModelName), None)
                     translationLang = get_lang_from_m2m100_name(madlad400LangName)
 
                 if translationLang is not None:
-                    translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=whisperLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams)
+                    translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=whisperLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams, torchDtypeFloat16=translationTorchDtypeFloat16)
 
                 progress(0, desc="init transcribe")
                 # Result
@@ -936,8 +937,9 @@ def create_ui(app_config: ApplicationConfig):
     mt5_models = app_config.get_model_names("mt5")
     ALMA_models = app_config.get_model_names("ALMA")
     madlad400_models = app_config.get_model_names("madlad400")
-    if not torch.cuda.is_available(): #Due to the poor support of GPTQ for CPUs, the execution time per iteration exceeds a thousand seconds when operating on a CPU. Therefore, when the system does not support a GPU, the GPTQ model is removed from the list.
-        ALMA_models = list(filter(lambda alma: "GPTQ" not in alma, ALMA_models))
+    if not torch.cuda.is_available(): #Load only GGUF and CT2 translation models in pure CPU environments..
+        ALMA_models = list(filter(lambda alma: "GGUF" in alma or "ct2" in alma, ALMA_models))
+        madlad400_models = list(filter(lambda madlad400: "ct2" in madlad400, madlad400_models))
 
     common_whisper_inputs = lambda : {
         gr.Dropdown(label="Whisper - Model (for audio)", choices=whisper_models, value=app_config.default_model_name, elem_id="whisperModelName"),
@@ -967,7 +969,8 @@ def create_ui(app_config: ApplicationConfig):
     common_translation_inputs = lambda : {
         gr.Number(label="Translation - Batch Size", precision=0, value=app_config.translation_batch_size, elem_id="translationBatchSize"),
         gr.Number(label="Translation - No Repeat Ngram Size", precision=0, value=app_config.translation_no_repeat_ngram_size, elem_id="translationNoRepeatNgramSize"),
-        gr.Number(label="Translation - Num Beams", precision=0, value=app_config.translation_num_beams, elem_id="translationNumBeams")
+        gr.Number(label="Translation - Num Beams", precision=0, value=app_config.translation_num_beams, elem_id="translationNumBeams"),
+        gr.Checkbox(label="Translation - Torch Dtype float16", info="Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models, such as Ctranslate2, GPTQ, GGUF)", value=app_config.translation_torch_dtype_float16, elem_id="translationTorchDtypeFloat16")
     }
 
     common_vad_inputs = lambda : {

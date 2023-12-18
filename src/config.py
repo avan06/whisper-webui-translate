@@ -82,6 +82,7 @@ class ApplicationConfig:
                  translation_batch_size: int = 2,
                  translation_no_repeat_ngram_size: int = 3,
                  translation_num_beams: int = 2,
+                 translation_torch_dtype_float16: bool = True,
                  # Whisper Segments Filter
                  whisper_segments_filter: bool = False,
                  whisper_segments_filters: List[str] = [],
@@ -150,6 +151,7 @@ class ApplicationConfig:
         self.translation_batch_size = translation_batch_size
         self.translation_no_repeat_ngram_size = translation_no_repeat_ngram_size
         self.translation_num_beams = translation_num_beams
+        self.translation_torch_dtype_float16 = translation_torch_dtype_float16
         # Whisper Segments Filter
         self.whisper_segments_filter = whisper_segments_filter
         self.whisper_segments_filters = whisper_segments_filters

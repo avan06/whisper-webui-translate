@@ -42,6 +42,7 @@ NLLB-200 is a multilingual translation model introduced by Meta AI in July 2022.
 | [facebook/nllb-200-distilled-1.3B](https://huggingface.co/facebook/nllb-200-distilled-1.3B) | 1.3B | 5.48 GB | float32 | ≈5.9 GB |
 | [facebook/nllb-200-1.3B](https://huggingface.co/facebook/nllb-200-1.3B) | 1.3B | 5.48 GB | float32 | ≈5.8 GB |
 | [facebook/nllb-200-3.3B](https://huggingface.co/facebook/nllb-200-3.3B) | 3.3B | 17.58 GB | float32 | ≈13.4 GB |
+| [facebook/nllb-moe-54b](https://huggingface.co/facebook/nllb-moe-54b) | 54B | 220.2 GB | float32 | N/A |
 
 ## NLLB-200-CTranslate2
 
@@ -78,8 +79,8 @@ The official support for ALMA currently includes 10 language directions: English
 
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
-| [haoranxu/ALMA-7B](https://huggingface.co/haoranxu/ALMA-7B) | 7B | 26.95 GB | float32 | N/A |
-| [haoranxu/ALMA-13B](https://huggingface.co/haoranxu/ALMA-13B) | 13B | 52.07 GB | float32 | N/A |
+| [haoranxu/ALMA-7B](https://huggingface.co/haoranxu/ALMA-7B) | 7B | 26.95 GB | float32 | ≈13.2 GB (torch dtype in float16) |
+| [haoranxu/ALMA-13B](https://huggingface.co/haoranxu/ALMA-13B) | 13B | 52.07 GB | float32 | ≈25.4 GB (torch dtype in float16) |
 
 ## ALMA-GPTQ
 
@@ -111,6 +112,46 @@ GGUF is a file format for storing models for inference with GGML and executors b
 | [avans06/ALMA-7B-ct2-int8_float16](https://huggingface.co/avans06/ALMA-7B-ct2-int8_float16) | 7B | 6.74 GB | int8_float16 | ≈6.6 GB |
 | [avans06/ALMA-13B-ct2-int8_float16](https://huggingface.co/avans06/ALMA-13B-ct2-int8_float16) | 13B | 13 GB | int8_float16 | ≈12.6 GB |
 
+## madlad400
+
+madlad400 is a multilingual machine translation model based on the T5 architecture introduced by Google DeepMind, Google Research in Sep 2023. It was trained on 250 billion tokens covering over 450 languages using publicly available data. The paper is titled "`MADLAD-400: A Multilingual And Document-Level Large Audited Dataset`" ([arXiv:2309.04662](https://arxiv.org/abs/2309.04662)).  
+
+| Name | Parameters | Size | type/quantize | Required VRAM |
+|------|------------|------|---------------|---------------|
+| [jbochi/madlad400-3b-mt](https://huggingface.co/jbochi/madlad400-3b-mt) | 3B | 11.8 GB | float32 | ≈12 GB |
+| [jbochi/madlad400-7b-mt](https://huggingface.co/jbochi/madlad400-7b-mt) | 7.2B | 33.2 GB | float32 | ≈19.7 GB (torch dtype in float16) |
+| [jbochi/madlad400-7b-mt-bt](https://huggingface.co/jbochi/madlad400-7b-mt-bt) | 7.2B | 33.2 GB | float32 (finetuned on backtranslated data) | ≈19.7 GB (torch dtype in float16) |
+| [jbochi/madlad400-8b-lm](https://huggingface.co/jbochi/madlad400-8b-lm) | 8B | 34.52 GB | float32 | N/A |
+| [jbochi/madlad400-10b-mt](https://huggingface.co/jbochi/madlad400-10b-mt) | 10.7B | 42.86 GB | float32 | ≈24.3 GB (torch dtype in float16) |
+
+## madlad400-CTranslate2
+
+| Name | Parameters | Size | type/quantize | Required VRAM |
+|------|------------|------|---------------|---------------|
+| [SoybeanMilk/madlad400-3b-mt-ct2-int8_float16](https://huggingface.co/SoybeanMilk/madlad400-3b-mt-ct2-int8_float16) | 3B | 2.95 GB | int8_float16 | ≈2.7 GB |
+| [SoybeanMilk/madlad400-10b-mt-ct2-int8_float16](https://huggingface.co/SoybeanMilk/madlad400-10b-mt-ct2-int8_float16) | 10.7B | 10.7 GB | int8_float16 | ≈10 GB |
+
+## SeamlessM4T
+
+SeamlessM4T is a collection of models designed to provide high quality translation, allowing people from different linguistic communities to communicate effortlessly through speech and text.
+
+It enables multiple tasks without relying on separate models:
+
+Speech-to-speech translation (S2ST)
+Speech-to-text translation (S2TT)
+Text-to-speech translation (T2ST)
+Text-to-text translation (T2TT)
+Automatic speech recognition (ASR)
+
+SeamlessM4T-v1 introduced by Seamless Communication team from Meta AI in Aug 2023. The paper is titled "`SeamlessM4T: Massively Multilingual & Multimodal Machine Translation`"([arXiv:2308.11596](https://arxiv.org/abs/2308.11596))
+SeamlessM4T-v2 introduced by Seamless Communication team from Meta AI in Dec 2023. The paper is titled "`Seamless: Multilingual Expressive and Streaming Speech Translation`"([arXiv:2312.05187](https://arxiv.org/abs/2312.05187))
+
+| Name | Parameters | Size | type/quantize | Required VRAM |
+|------|------------|------|---------------|---------------|
+| [facebook/hf-seamless-m4t-medium](https://huggingface.co/facebook/hf-seamless-m4t-medium) | 1.2B | 4.84 GB | float32 | N/A |
+| [facebook/seamless-m4t-large](https://huggingface.co/facebook/seamless-m4t-large) | 2.3B | 11.4 GB | float32 | N/A |
+| [facebook/seamless-m4t-v2-large](https://huggingface.co/facebook/seamless-m4t-v2-large) | 2.3B | 11.4 GB (safetensors:9.24 GB) | float32 | N/A |
+
 
 # Options
 
@@ -131,3 +172,7 @@ Prevent repetitions of ngrams with this size (set 0 to disable).
 Number of beams for beam search that will be used by default in the generate method of the model. 1 means no beam search.
 - ctranslate2: beam_size  
 Beam size (1 for greedy search).
+
+## Translation - Torch Dtype float16
+- transformers: torch_dtype=torch.float16  
+Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models such as Ctranslate2, GPTQ, GGUF)

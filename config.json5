@@ -229,6 +229,16 @@
         "type": "huggingface",
         "tokenizer_url": "haoranxu/ALMA-13B"
       },
+      {
+        "name": "ALMA-7B/haoranxu",
+        "url": "haoranxu/ALMA-7B",
+        "type": "huggingface"
+      },
+      {
+        "name": "ALMA-13B/haoranxu",
+        "url": "haoranxu/ALMA-13B",
+        "type": "huggingface"
+      },
     ],
     "madlad400": [
       {
@@ -242,6 +252,21 @@
         "url": "SoybeanMilk/madlad400-10b-mt-ct2-int8_float16",
         "type": "huggingface",
         "tokenizer_url": "jbochi/madlad400-10b-mt"
+      },
+      {
+        "name": "madlad400-3b-mt/jbochi",
+        "url": "jbochi/madlad400-3b-mt",
+        "type": "huggingface",
+      },
+      {
+        "name": "madlad400-7b-mt-bt/jbochi",
+        "url": "jbochi/madlad400-7b-mt-bt",
+        "type": "huggingface",
+      },
+      {
+        "name": "madlad400-10b-mt/jbochi",
+        "url": "jbochi/madlad400-10b-mt",
+        "type": "huggingface",
       },
     ]
   },
@@ -373,4 +398,6 @@
   "translation_no_repeat_ngram_size": 3,
   // Translation - Beam size (1 for greedy search).
   "translation_num_beams": 2,
+  // Translation - Torch Dtype float16, Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models, such as Ctranslate2, GPTQ, GGUF).
+  "translation_torch_dtype_float16": true,
 }
