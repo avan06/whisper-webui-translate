@@ -22,6 +22,7 @@ class TranslationModel:
         noRepeatNgramSize: int = 3,
         numBeams: int = 2,
         torchDtypeFloat16: bool = True,
+        usingBitsandbytes: str = None,
         downloadRoot: Optional[str] = None,
         localFilesOnly: bool = False,
         loadModel: bool = False,
@@ -73,7 +74,14 @@ class TranslationModel:
             )
 
         if device is None:
+            self.totalVram = 0
             if torch.cuda.is_available():
+                try:
+                    deviceId = torch.cuda.current_device()
+                    self.totalVram = torch.cuda.get_device_properties(deviceId).total_memory/(1024*1024*1024)
+                except Exception as e:
+                    print(traceback.format_exc())
+                    print("Error detect vram: " + str(e))
                 device = "cuda" if "ct2" in self.modelPath else "cuda:0"
             else:
                 device = "cpu"
@@ -81,12 +89,30 @@ class TranslationModel:
 
         self.device = device
         self.torchDtypeFloat16 = torchDtypeFloat16
+        self.usingBitsandbytes = usingBitsandbytes
 
         if loadModel:
             self.load_model()
 
     def load_model(self):
         """
+        [transformers.BitsAndBytesConfig]
+        load_in_8bit (bool, optional, defaults to False)
+            This flag is used to enable 8-bit quantization with LLM.int8().
+        load_in_4bit (bool, optional, defaults to False)
+            This flag is used to enable 4-bit quantization by replacing the Linear layers with FP4/NF4 layers from bitsandbytes.
+        llm_int8_enable_fp32_cpu_offload (bool, optional, defaults to False)
+            This flag is used for advanced use cases and users that are aware of this feature. 
+            If you want to split your model in different parts and run some parts in int8 on GPU and some parts in fp32 on CPU, you can use this flag. 
+            This is useful for offloading large models such as google/flan-t5-xxl. Note that the int8 operations will not be run on CPU.
+        bnb_4bit_compute_dtype (torch.dtype or str, optional, defaults to torch.float32)
+            This sets the computational type which might be different than the input time. 
+            For example, inputs might be fp32, but computation can be set to bf16 for speedups.
+        bnb_4bit_quant_type (str, optional, defaults to "fp4")
+            This sets the quantization data type in the bnb.nn.Linear4Bit layers. Options are FP4 and NF4 data types which are specified by fp4 or nf4.
+        bnb_4bit_use_double_quant (bool, optional, defaults to False)
+            This flag is used for nested quantization where the quantization constants from the first quantization are quantized again.
+        
         [from_pretrained]
         low_cpu_mem_usage(bool, optional):
             Tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model. This is an experimental feature and a subject to change at any moment.
@@ -172,64 +198,96 @@ class TranslationModel:
         """
         try:
             print('\n\nLoading model: %s\n\n' % self.modelPath)
+            kwargsTokenizer = {}
+            kwargsModel = {}
+            kwargsPipeline = {}
+
+            if not any(name in self.modelPath for name in ["ct2", "GGUF", "GPTQ"]):
+                kwargsModel["torch_dtype"] = torch.float16 if self.torchDtypeFloat16 else "auto"
+
+            if "GPTQ" in self.modelPath:
+                kwargsModel.update({"device_map": "auto"})
+            elif "ct2" in self.modelPath:
+                kwargsModel.update({"device": self.device})
+            elif "GGUF" in self.modelPath:
+                pass
+            elif self.usingBitsandbytes == None:
+                    kwargsPipeline.update({"device": self.device})
+            elif self.usingBitsandbytes == "int8":
+                kwargsModel.update({"load_in_8bit": True, "llm_int8_enable_fp32_cpu_offload": True})
+            elif self.usingBitsandbytes == "int4":
+                kwargsModel.update({"load_in_4bit": True, "llm_int8_enable_fp32_cpu_offload": True, 
+                                    "bnb_4bit_use_double_quant": True, 
+                                    "bnb_4bit_quant_type": "nf4", 
+                                    "bnb_4bit_compute_dtype": torch.bfloat16})
+
+            if not any(name in self.modelPath for name in ["ct2", "GGUF"]):    
+                kwargsModel.update({"pretrained_model_name_or_path": self.modelPath, "low_cpu_mem_usage": True})            
+
             if "ct2" in self.modelPath:
-                if any(name in self.modelPath for name in ["nllb", "m2m100"]):
+                kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath})
+                kwargsModel.update({"model_path": self.modelPath, "compute_type": "auto"})
+                if "ALMA" in self.modelPath:
+                    self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
+                    self.transModel = ctranslate2.Generator(**kwargsModel)
+                else:
                     if "nllb" in self.modelPath:
-                        self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.nllb.code)
+                        kwargsTokenizer.update({"src_lang": self.whisperLang.nllb.code})
                         self.targetPrefix = [self.translationLang.nllb.code]
                     elif "m2m100" in self.modelPath:
-                        self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.m2m100.code)
-                        self.targetPrefix = [self.transTokenizer.lang_code_to_token[self.translationLang.m2m100.code]]
-                    self.transModel = ctranslate2.Translator(self.modelPath, compute_type="auto", device=self.device)
-                elif "ALMA" in self.modelPath:
-                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath)
-                    self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
-                    self.transModel = ctranslate2.Generator(self.modelPath, compute_type="auto", device=self.device)
-                elif "madlad400" in self.modelPath:
-                    self.madlad400Prefix = "<2" + self.translationLang.whisper.code + "> "
-                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url if self.modelConfig.tokenizer_url is not None and len(self.modelConfig.tokenizer_url) > 0 else self.modelPath, src_lang=self.whisperLang.m2m100.code)
-                    self.transModel = ctranslate2.Translator(self.modelPath, compute_type="auto", device=self.device)
+                        kwargsTokenizer.update({"src_lang": self.whisperLang.m2m100.code})
+                    elif "madlad400" in self.modelPath:
+                        kwargsTokenizer.update({"src_lang": self.whisperLang.m2m100.code})
+                        self.madlad400Prefix = "<2" + self.translationLang.whisper.code + "> "
+                    self.transModel = ctranslate2.Translator(**kwargsModel)
+                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(**kwargsTokenizer)
+                if "m2m100" in self.modelPath:
+                    self.targetPrefix = [self.transTokenizer.lang_code_to_token[self.translationLang.m2m100.code]]
             elif "mt5" in self.modelPath:
                 self.mt5Prefix = self.whisperLang.whisper.code + "2" + self.translationLang.whisper.code + ": "
-                self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False) #requires spiece.model
-                self.transModel = transformers.MT5ForConditionalGeneration.from_pretrained(self.modelPath, low_cpu_mem_usage=True, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto")
-                self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
+                kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelPath, "legacy": False})
+                self.transTokenizer = transformers.T5Tokenizer.from_pretrained(**kwargsTokenizer)
+                self.transModel = transformers.MT5ForConditionalGeneration.from_pretrained(**kwargsModel)
+                kwargsPipeline.update({"task": "text2text-generation", "model": self.transModel, "tokenizer": self.transTokenizer})
             elif "ALMA" in self.modelPath:
                 self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
-                if "GPTQ" in self.modelPath:
-                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
-                    if self.device == "cpu":
-                        # Due to the poor support of GPTQ for CPUs, Therefore, it is strongly discouraged to operate it on CPU.  
-                        # set torch_dtype=torch.float32 to prevent the occurrence of the exception "addmm_impl_cpu_ not implemented for 'Half'."
-                        transModelConfig = transformers.AutoConfig.from_pretrained(self.modelPath)
-                        transModelConfig.quantization_config["use_exllama"] = False
-                        self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision, config=transModelConfig, torch_dtype=torch.float32)
-                    else:
-                        # transModelConfig.quantization_config["exllama_config"] = {"version":2} # After configuring to use ExLlamaV2, VRAM cannot be effectively released, which may be an issue. Temporarily not adopting the V2 version.
-                        self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, device_map="auto", low_cpu_mem_usage=True, trust_remote_code=False, revision=self.modelConfig.revision)
-                elif "GGUF" in self.modelPath:
+                if "GGUF" in self.modelPath:
+                    kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelConfig.tokenizer_url})
+                    kwargsModel.update({"model_path_or_repo_id": self.modelPath, "hf": True, "model_file": self.modelConfig.model_file, "model_type": "llama"})
+                    if self.totalVram > 2:
+                        kwargsModel.update({"gpu_layers":int(self.totalVram*7)})
                     import ctransformers
-                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelConfig.tokenizer_url)
-                    if self.device == "cpu":
-                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file, low_cpu_mem_usage=True)
-                    else:
-                        self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(self.modelPath, hf=True, model_file=self.modelConfig.model_file, gpu_layers=50, low_cpu_mem_usage=True)
+                    self.transModel = ctransformers.AutoModelForCausalLM.from_pretrained(**kwargsModel)
                 else:
-                    self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath, use_fast=True)
-                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(self.modelPath, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto", low_cpu_mem_usage=True) #, device_map="auto"
-                self.transTranslator = transformers.pipeline("text-generation", model=self.transModel, device=self.device if "GPTQ" not in self.modelPath and "GGUF" not in self.modelPath else None, tokenizer=self.transTokenizer, do_sample=True, temperature=0.7, top_k=40, top_p=0.95, repetition_penalty=1.1)
+                    kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelPath, "use_fast": True})
+                    if "GPTQ" in self.modelPath:
+                        kwargsModel.update({"trust_remote_code": False, "revision": self.modelConfig.revision})
+                        if self.device == "cpu":
+                            # Due to the poor support of GPTQ for CPUs, Therefore, it is strongly discouraged to operate it on CPU.  
+                            # set torch_dtype=torch.float32 to prevent the occurrence of the exception "addmm_impl_cpu_ not implemented for 'Half'."
+                            transModelConfig = transformers.AutoConfig.from_pretrained(self.modelPath)
+                            transModelConfig.quantization_config["use_exllama"] = False
+                            kwargsModel.update({"config": transModelConfig})
+                    self.transModel = transformers.AutoModelForCausalLM.from_pretrained(**kwargsModel)
+                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(**kwargsTokenizer)
+                kwargsPipeline.update({"task": "text-generation", "model": self.transModel, "tokenizer": self.transTokenizer, "do_sample": True, "temperature": 0.7, "top_k": 40, "top_p": 0.95, "repetition_penalty": 1.1})
             elif "madlad400" in self.modelPath:
                 self.madlad400Prefix = "<2" + self.translationLang.whisper.code + "> "
-                self.transTokenizer = transformers.T5Tokenizer.from_pretrained(self.modelPath, legacy=False)
-                self.transModel = transformers.T5ForConditionalGeneration.from_pretrained(self.modelPath, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto", low_cpu_mem_usage=True) #, device_map="auto"
-                self.transTranslator = transformers.pipeline('text2text-generation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer)
+                kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelPath, "legacy": False})
+                self.transTokenizer = transformers.T5Tokenizer.from_pretrained(**kwargsTokenizer)
+                self.transModel = transformers.T5ForConditionalGeneration.from_pretrained(**kwargsModel)
+                kwargsPipeline.update({"task": "text2text-generation", "model": self.transModel, "tokenizer": self.transTokenizer})
             else:
-                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(self.modelPath)
-                self.transModel = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.modelPath, torch_dtype=torch.float16 if self.torchDtypeFloat16 else "auto")
+                kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelPath})
+                self.transTokenizer = transformers.AutoTokenizer.from_pretrained(**kwargsTokenizer)
+                self.transModel = transformers.AutoModelForSeq2SeqLM.from_pretrained(**kwargsModel)
+                kwargsPipeline.update({"task": "translation", "model": self.transModel, "tokenizer": self.transTokenizer})
                 if "m2m100" in self.modelPath:
-                    self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.m2m100.code, tgt_lang=self.translationLang.m2m100.code)
+                    kwargsPipeline.update({"src_lang": self.whisperLang.m2m100.code, "tgt_lang": self.translationLang.m2m100.code})
                 else: #NLLB
-                    self.transTranslator = transformers.pipeline('translation', model=self.transModel, device=self.device, tokenizer=self.transTokenizer, src_lang=self.whisperLang.nllb.code, tgt_lang=self.translationLang.nllb.code)
+                    kwargsPipeline.update({"src_lang": self.whisperLang.nllb.code, "tgt_lang": self.translationLang.nllb.code})
+            if "ct2" not in self.modelPath:
+                self.transTranslator = transformers.pipeline(**kwargsPipeline)
         except Exception as e:
             self.release_vram()
             raise e

@@ -204,4 +204,8 @@ Beam size (1 for greedy search).
 
 ## Translation - Torch Dtype float16
 - transformers: torch_dtype=torch.float16  
-Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models such as Ctranslate2, GPTQ, GGUF)
+Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)
+
+## Translation - Using Bitsandbytes
+- transformers: load_in_8bit, load_in_4bit
+Load the float32 translation model into mixed-8bit or 4bit precision quantized model when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)

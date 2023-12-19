@@ -60,29 +60,40 @@
         "tokenizer_url": "facebook/m2m100_1.2B"
       },
       {
-        "name": "m2m100_418M-ct2fast/michaelfeil",
-        "url": "michaelfeil/ct2fast-m2m100_418M",
-        "type": "huggingface",
-        "tokenizer_url": "facebook/m2m100_418M"
-      },
-      //{
-      //  "name": "m2m100-12B-ct2fast/michaelfeil",
-      //  "url": "michaelfeil/ct2fast-m2m100-12B-last-ckpt",
-      //  "type": "huggingface",
-      //  "tokenizer_url": "facebook/m2m100-12B-last-ckpt"
-      //},
-      {
         "name": "m2m100_1.2B/facebook",
         "url": "facebook/m2m100_1.2B",
         "type": "huggingface"
       },
       {
+        "name": "m2m100_418M-ct2fast/michaelfeil",
+        "url": "michaelfeil/ct2fast-m2m100_418M",
+        "type": "huggingface",
+        "tokenizer_url": "facebook/m2m100_418M"
+      },
+      {
         "name": "m2m100_418M/facebook",
         "url": "facebook/m2m100_418M",
         "type": "huggingface"
+      },
+      {
+        "name": "m2m100-12B-last-ckpt/facebook",
+        "url": "facebook/m2m100-12B-last-ckpt",
+        "type": "huggingface"
+      },
+      {
+        "name": "m2m100-12B-ct2fast/michaelfeil",
+        "url": "michaelfeil/ct2fast-m2m100-12B-last-ckpt",
+        "type": "huggingface",
+        "tokenizer_url": "facebook/m2m100-12B-last-ckpt"
       }
     ],
     "nllb": [
+      {
+        "name": "nllb-200-distilled-1.3B-ct2:int8/JustFrederik",
+        "url": "JustFrederik/nllb-200-distilled-1.3B-ct2-int8",
+        "type": "huggingface",
+        "tokenizer_url": "facebook/nllb-200-distilled-1.3B"
+      },
       {
         "name": "nllb-200-distilled-1.3B-ct2fast:int8_float16/michaelfeil",
         "url": "michaelfeil/ct2fast-nllb-200-distilled-1.3B",
@@ -90,20 +101,14 @@
         "tokenizer_url": "facebook/nllb-200-distilled-1.3B"
       },
       {
-        "name": "nllb-200-3.3B-ct2fast:int8_float16/michaelfeil",
-        "url": "michaelfeil/ct2fast-nllb-200-3.3B",
-        "type": "huggingface",
-        "tokenizer_url": "facebook/nllb-200-3.3B"
-      },
-      {
-        "name": "nllb-200-1.3B-ct2:float16/JustFrederik",
-        "url": "JustFrederik/nllb-200-1.3B-ct2-float16",
-        "type": "huggingface",
-        "tokenizer_url": "facebook/nllb-200-1.3B"
-      },
-      {
         "name": "nllb-200-distilled-1.3B-ct2:float16/JustFrederik",
         "url": "JustFrederik/nllb-200-distilled-1.3B-ct2-float16",
+        "type": "huggingface",
+        "tokenizer_url": "facebook/nllb-200-distilled-1.3B"
+      },
+      {
+        "name": "nllb-200-distilled-1.3B-ct2/JustFrederik",
+        "url": "JustFrederik/nllb-200-distilled-1.3B-ct2",
         "type": "huggingface",
         "tokenizer_url": "facebook/nllb-200-distilled-1.3B"
       },
@@ -114,10 +119,43 @@
         "tokenizer_url": "facebook/nllb-200-1.3B"
       },
       {
-        "name": "nllb-200-distilled-1.3B-ct2:int8/JustFrederik",
-        "url": "JustFrederik/nllb-200-distilled-1.3B-ct2-int8",
+        "name": "nllb-200-1.3B-ct2:float16/JustFrederik",
+        "url": "JustFrederik/nllb-200-1.3B-ct2-float16",
         "type": "huggingface",
-        "tokenizer_url": "facebook/nllb-200-distilled-1.3B"
+        "tokenizer_url": "facebook/nllb-200-1.3B"
+      },
+      {
+        "name": "nllb-200-1.3B-ct2/JustFrederik",
+        "url": "JustFrederik/nllb-200-1.3B-ct2",
+        "type": "huggingface",
+        "tokenizer_url": "facebook/nllb-200-1.3B"
+      },
+      {
+        "name": "nllb-200-distilled-1.3B/facebook",
+        "url": "facebook/nllb-200-distilled-1.3B",
+        "type": "huggingface"
+      },
+      {
+        "name": "nllb-200-1.3B/facebook",
+        "url": "facebook/nllb-200-1.3B",
+        "type": "huggingface"
+      },
+      {
+        "name": "nllb-200-3.3B-ct2fast:int8_float16/michaelfeil",
+        "url": "michaelfeil/ct2fast-nllb-200-3.3B",
+        "type": "huggingface",
+        "tokenizer_url": "facebook/nllb-200-3.3B"
+      },
+      {
+        "name": "nllb-200-3.3B-ct2:float16/JustFrederik",
+        "url": "JustFrederik/nllb-200-3.3B-ct2-float16",
+        "type": "huggingface",
+        "tokenizer_url": "facebook/nllb-200-3.3B"
+      },
+      {
+        "name": "nllb-200-3.3B/facebook",
+        "url": "facebook/nllb-200-3.3B",
+        "type": "huggingface"
       },
       {
         "name": "nllb-200-distilled-600M/facebook",
@@ -125,8 +163,8 @@
         "type": "huggingface"
       },
       {
-        "name": "nllb-200-distilled-600M-ct2/JustFrederik",
-        "url": "JustFrederik/nllb-200-distilled-600M-ct2",
+        "name": "nllb-200-distilled-600M-ct2:int8/JustFrederik",
+        "url": "JustFrederik/nllb-200-distilled-600M-ct2-int8",
         "type": "huggingface",
         "tokenizer_url": "facebook/nllb-200-distilled-600M"
       },
@@ -137,48 +175,11 @@
         "tokenizer_url": "facebook/nllb-200-distilled-600M"
       },
       {
-        "name": "nllb-200-distilled-600M-ct2:int8/JustFrederik",
-        "url": "JustFrederik/nllb-200-distilled-600M-ct2-int8",
+        "name": "nllb-200-distilled-600M-ct2/JustFrederik",
+        "url": "JustFrederik/nllb-200-distilled-600M-ct2",
         "type": "huggingface",
         "tokenizer_url": "facebook/nllb-200-distilled-600M"
       }
-      // Uncomment to add official Facebook 1.3B and 3.3B model
-      // The official Facebook 1.3B and 3.3B model files are too large,
-      //   and to avoid occupying too much disk space on Hugging Face's free spaces, 
-      //   these models are not included in the config.
-      //{
-      //  "name": "nllb-200-distilled-1.3B/facebook",
-      //  "url": "facebook/nllb-200-distilled-1.3B",
-      //  "type": "huggingface"
-      //},
-      //{
-      //  "name": "nllb-200-1.3B/facebook",
-      //  "url": "facebook/nllb-200-1.3B",
-      //  "type": "huggingface"
-      //},
-      //{
-      //  "name": "nllb-200-3.3B/facebook",
-      //  "url": "facebook/nllb-200-3.3B",
-      //  "type": "huggingface"
-      //},
-      //{
-      //  "name": "nllb-200-distilled-1.3B-ct2/JustFrederik",
-      //  "url": "JustFrederik/nllb-200-distilled-1.3B-ct2",
-      //  "type": "huggingface",
-      //  "tokenizer_url": "facebook/nllb-200-distilled-1.3B"
-      //},
-      //{
-      //  "name": "nllb-200-1.3B-ct2/JustFrederik",
-      //  "url": "JustFrederik/nllb-200-1.3B-ct2",
-      //  "type": "huggingface",
-      //  "tokenizer_url": "facebook/nllb-200-1.3B"
-      //},
-      //{
-      //  "name": "nllb-200-3.3B-ct2:float16/JustFrederik",
-      //  "url": "JustFrederik/nllb-200-3.3B-ct2-float16",
-      //  "type": "huggingface",
-      //  "tokenizer_url": "facebook/nllb-200-3.3B"
-      //},
     ],
     "mt5": [
       {
@@ -238,7 +239,7 @@
         "name": "ALMA-13B/haoranxu",
         "url": "haoranxu/ALMA-13B",
         "type": "huggingface"
-      },
+      }
     ],
     "madlad400": [
       {
@@ -256,18 +257,18 @@
       {
         "name": "madlad400-3b-mt/jbochi",
         "url": "jbochi/madlad400-3b-mt",
-        "type": "huggingface",
+        "type": "huggingface"
       },
       {
         "name": "madlad400-7b-mt-bt/jbochi",
         "url": "jbochi/madlad400-7b-mt-bt",
-        "type": "huggingface",
+        "type": "huggingface"
       },
       {
         "name": "madlad400-10b-mt/jbochi",
         "url": "jbochi/madlad400-10b-mt",
-        "type": "huggingface",
-      },
+        "type": "huggingface"
+      }
     ]
   },
   // Configuration options that will be used if they are not specified in the command line arguments.
@@ -400,4 +401,6 @@
   "translation_num_beams": 2,
   // Translation - Torch Dtype float16, Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models, such as Ctranslate2, GPTQ, GGUF).
   "translation_torch_dtype_float16": true,
+  // Translation - Using Bitsandbytes, Load the float32 translation model into mixed-8bit or 4bit precision quantized model(not applicable to quantized models, such as Ctranslate2, GPTQ, GGUF).
+  "translation_using_bitsandbytes": null
 }

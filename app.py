@@ -240,7 +240,8 @@ class WhisperTranscriber:
             translationNoRepeatNgramSize: int  = decodeOptions.pop("translationNoRepeatNgramSize")
             translationNumBeams:          int  = decodeOptions.pop("translationNumBeams")
             translationTorchDtypeFloat16: bool = decodeOptions.pop("translationTorchDtypeFloat16")
-            
+            translationUsingBitsandbytes: str  = decodeOptions.pop("translationUsingBitsandbytes")
+
             sourceInput:    str  = decodeOptions.pop("sourceInput")
             urlData:        str  = decodeOptions.pop("urlData")
             multipleFiles:  List = decodeOptions.pop("multipleFiles")
@@ -377,7 +378,7 @@ class WhisperTranscriber:
                     translationLang = get_lang_from_m2m100_name(madlad400LangName)
 
                 if translationLang is not None:
-                    translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=whisperLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams, torchDtypeFloat16=translationTorchDtypeFloat16)
+                    translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=whisperLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams, torchDtypeFloat16=translationTorchDtypeFloat16, usingBitsandbytes=translationUsingBitsandbytes)
 
                 progress(0, desc="init transcribe")
                 # Result
@@ -937,7 +938,9 @@ def create_ui(app_config: ApplicationConfig):
     mt5_models = app_config.get_model_names("mt5")
     ALMA_models = app_config.get_model_names("ALMA")
     madlad400_models = app_config.get_model_names("madlad400")
-    if not torch.cuda.is_available(): #Load only GGUF and CT2 translation models in pure CPU environments..
+    if not torch.cuda.is_available(): # Loading only quantized or models with medium-low parameters in an environment without GPU support.
+        nllb_models = list(filter(lambda nllb: any(name in nllb for name in ["-600M", "-1.3B", "-3.3B-ct2"]), nllb_models))
+        m2m100_models = list(filter(lambda m2m100: "12B" not in m2m100, m2m100_models))
         ALMA_models = list(filter(lambda alma: "GGUF" in alma or "ct2" in alma, ALMA_models))
         madlad400_models = list(filter(lambda madlad400: "ct2" in madlad400, madlad400_models))
 
@@ -970,7 +973,8 @@ def create_ui(app_config: ApplicationConfig):
         gr.Number(label="Translation - Batch Size", precision=0, value=app_config.translation_batch_size, elem_id="translationBatchSize"),
         gr.Number(label="Translation - No Repeat Ngram Size", precision=0, value=app_config.translation_no_repeat_ngram_size, elem_id="translationNoRepeatNgramSize"),
         gr.Number(label="Translation - Num Beams", precision=0, value=app_config.translation_num_beams, elem_id="translationNumBeams"),
-        gr.Checkbox(label="Translation - Torch Dtype float16", info="Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models, such as Ctranslate2, GPTQ, GGUF)", value=app_config.translation_torch_dtype_float16, elem_id="translationTorchDtypeFloat16")
+        gr.Checkbox(label="Translation - Torch Dtype float16", visible=torch.cuda.is_available(), value=app_config.translation_torch_dtype_float16, info="Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)", elem_id="translationTorchDtypeFloat16"),
+        gr.Radio(label="Translation - Using Bitsandbytes", visible=torch.cuda.is_available(), choices=[None, "int8", "int4"], value=app_config.translation_using_bitsandbytes, info="Load the float32 translation model into mixed-8bit or 4bit precision quantized model when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)", elem_id="translationUsingBitsandbytes"),
     }
 
     common_vad_inputs = lambda : {

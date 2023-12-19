@@ -22,7 +22,7 @@ M2M100 is a multilingual translation model introduced by Facebook AI in October 
 |------|------------|------|---------------|---------------|
 | [facebook/m2m100_418M](https://huggingface.co/facebook/m2m100_418M) | 418M | 1.94 GB | float32 | ≈2 GB |
 | [facebook/m2m100_1.2B](https://huggingface.co/facebook/m2m100_1.2B) | 1.2B | 4.96 GB | float32 | ≈5 GB |
-| [facebook/m2m100-12B-last-ckpt](https://huggingface.co/facebook/m2m100-12B-last-ckpt) | 12B | 47.2 GB | float32 | N/A |
+| [facebook/m2m100-12B-last-ckpt](https://huggingface.co/facebook/m2m100-12B-last-ckpt) | 12B | 47.2 GB | float32 | 22.1 GB (torch dtype in float16) |
 
 ## M2M100-CTranslate2
 
@@ -133,18 +133,18 @@ madlad400 is a multilingual machine translation model based on the T5 architectu
 
 ## SeamlessM4T
 
-SeamlessM4T is a collection of models designed to provide high quality translation, allowing people from different linguistic communities to communicate effortlessly through speech and text.
+SeamlessM4T is a collection of models designed to provide high quality translation, allowing people from different linguistic communities to communicate effortlessly through speech and text.  
 
-It enables multiple tasks without relying on separate models:
+It enables multiple tasks without relying on separate models:  
 
-Speech-to-speech translation (S2ST)
-Speech-to-text translation (S2TT)
-Text-to-speech translation (T2ST)
-Text-to-text translation (T2TT)
-Automatic speech recognition (ASR)
+Speech-to-speech translation (S2ST)  
+Speech-to-text translation (S2TT)  
+Text-to-speech translation (T2ST)  
+Text-to-text translation (T2TT)  
+Automatic speech recognition (ASR)  
 
-SeamlessM4T-v1 introduced by Seamless Communication team from Meta AI in Aug 2023. The paper is titled "`SeamlessM4T: Massively Multilingual & Multimodal Machine Translation`"([arXiv:2308.11596](https://arxiv.org/abs/2308.11596))
-SeamlessM4T-v2 introduced by Seamless Communication team from Meta AI in Dec 2023. The paper is titled "`Seamless: Multilingual Expressive and Streaming Speech Translation`"([arXiv:2312.05187](https://arxiv.org/abs/2312.05187))
+SeamlessM4T-v1 introduced by Seamless Communication team from Meta AI in Aug 2023. The paper is titled "`SeamlessM4T: Massively Multilingual & Multimodal Machine Translation`"([arXiv:2308.11596](https://arxiv.org/abs/2308.11596))  
+SeamlessM4T-v2 introduced by Seamless Communication team from Meta AI in Dec 2023. The paper is titled "`Seamless: Multilingual Expressive and Streaming Speech Translation`"([arXiv:2312.05187](https://arxiv.org/abs/2312.05187))  
 
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
@@ -175,4 +175,8 @@ Beam size (1 for greedy search).
 
 ## Translation - Torch Dtype float16
 - transformers: torch_dtype=torch.float16  
-Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models such as Ctranslate2, GPTQ, GGUF)
+Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)
+
+## Translation - Using Bitsandbytes
+- transformers: load_in_8bit, load_in_4bit
+Load the float32 translation model into mixed-8bit or 4bit precision quantized model when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)
