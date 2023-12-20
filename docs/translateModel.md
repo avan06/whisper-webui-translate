@@ -22,7 +22,7 @@ M2M100 is a multilingual translation model introduced by Facebook AI in October 
 |------|------------|------|---------------|---------------|
 | [facebook/m2m100_418M](https://huggingface.co/facebook/m2m100_418M) | 418M | 1.94 GB | float32 | ≈2 GB |
 | [facebook/m2m100_1.2B](https://huggingface.co/facebook/m2m100_1.2B) | 1.2B | 4.96 GB | float32 | ≈5 GB |
-| [facebook/m2m100-12B-last-ckpt](https://huggingface.co/facebook/m2m100-12B-last-ckpt) | 12B | 47.2 GB | float32 | 22.1 GB (torch dtype in float16) |
+| [facebook/m2m100-12B-last-ckpt](https://huggingface.co/facebook/m2m100-12B-last-ckpt) | 12B | 47.2 GB | float32 | ≈22.1 GB (torch dtype in float16) |
 
 ## M2M100-CTranslate2
 
@@ -143,14 +143,14 @@ Text-to-speech translation (T2ST)
 Text-to-text translation (T2TT)  
 Automatic speech recognition (ASR)  
 
-SeamlessM4T-v1 introduced by Seamless Communication team from Meta AI in Aug 2023. The paper is titled "`SeamlessM4T: Massively Multilingual & Multimodal Machine Translation`"([arXiv:2308.11596](https://arxiv.org/abs/2308.11596))  
-SeamlessM4T-v2 introduced by Seamless Communication team from Meta AI in Dec 2023. The paper is titled "`Seamless: Multilingual Expressive and Streaming Speech Translation`"([arXiv:2312.05187](https://arxiv.org/abs/2312.05187))  
+[SeamlessM4T-v1](https://huggingface.co/docs/transformers/main/en/model_doc/seamless_m4t) introduced by Seamless Communication team from Meta AI in Aug 2023. The paper is titled "`SeamlessM4T: Massively Multilingual & Multimodal Machine Translation`"([arXiv:2308.11596](https://arxiv.org/abs/2308.11596))  
+[SeamlessM4T-v2](https://huggingface.co/docs/transformers/main/en/model_doc/seamless_m4t_v2) introduced by Seamless Communication team from Meta AI in Dec 2023. The paper is titled "`Seamless: Multilingual Expressive and Streaming Speech Translation`"([arXiv:2312.05187](https://arxiv.org/abs/2312.05187))  
 
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
 | [facebook/hf-seamless-m4t-medium](https://huggingface.co/facebook/hf-seamless-m4t-medium) | 1.2B | 4.84 GB | float32 | N/A |
 | [facebook/seamless-m4t-large](https://huggingface.co/facebook/seamless-m4t-large) | 2.3B | 11.4 GB | float32 | N/A |
-| [facebook/seamless-m4t-v2-large](https://huggingface.co/facebook/seamless-m4t-v2-large) | 2.3B | 11.4 GB (safetensors:9.24 GB) | float32 | N/A |
+| [facebook/seamless-m4t-v2-large](https://huggingface.co/facebook/seamless-m4t-v2-large) | 2.3B | 11.4 GB (safetensors:9.24 GB) | float32 | ≈9.2 GB |
 
 
 # Options

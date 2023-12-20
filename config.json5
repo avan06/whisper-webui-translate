@@ -269,6 +269,23 @@
         "url": "jbochi/madlad400-10b-mt",
         "type": "huggingface"
       }
+    ],
+    "seamless":  [
+      //{
+      //  "name": "hf-seamless-m4t-medium/facebook",
+      //  "url": "facebook/hf-seamless-m4t-medium",
+      //  "type": "huggingface"
+      //},
+      //{
+      //  "name": "seamless-m4t-large/facebook",
+      //  "url": "facebook/seamless-m4t-large",
+      //  "type": "huggingface"
+      //},
+      {
+        "name": "seamless-m4t-v2-large/facebook",
+        "url": "facebook/seamless-m4t-v2-large",
+        "type": "huggingface"
+      }
     ]
   },
   // Configuration options that will be used if they are not specified in the command line arguments.

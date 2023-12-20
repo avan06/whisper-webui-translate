@@ -27,7 +27,7 @@ class TranslationModel:
         localFilesOnly: bool = False,
         loadModel: bool = False,
     ):
-        """Initializes the M2M100 / Nllb-200 / mt5 / ALMA / madlad400 translation model.
+        """Initializes the M2M100 / Nllb-200 / mt5 / ALMA / madlad400 / seamless-m4t translation model.
 
         Args:
           modelConfig: Config of the model to use (distilled-600M, distilled-1.3B, 
@@ -212,7 +212,7 @@ class TranslationModel:
             elif "GGUF" in self.modelPath:
                 pass
             elif self.usingBitsandbytes == None:
-                    kwargsPipeline.update({"device": self.device})
+                kwargsPipeline.update({"device": self.device})
             elif self.usingBitsandbytes == "int8":
                 kwargsModel.update({"load_in_8bit": True, "llm_int8_enable_fp32_cpu_offload": True})
             elif self.usingBitsandbytes == "int4":
@@ -277,6 +277,14 @@ class TranslationModel:
                 self.transTokenizer = transformers.T5Tokenizer.from_pretrained(**kwargsTokenizer)
                 self.transModel = transformers.T5ForConditionalGeneration.from_pretrained(**kwargsModel)
                 kwargsPipeline.update({"task": "text2text-generation", "model": self.transModel, "tokenizer": self.transTokenizer})
+            elif "seamless" in self.modelPath:
+                self.transProcessor = transformers.AutoProcessor.from_pretrained(self.modelPath)
+                if "v2" in self.modelPath:
+                    self.transModel = transformers.SeamlessM4Tv2Model.from_pretrained(**kwargsModel)
+                else:
+                    self.transModel = transformers.SeamlessM4TModel.from_pretrained(**kwargsModel)
+                if self.device != "cpu" and "load_in_8bit" not in kwargsModel and "load_in_4bit" not in kwargsModel:
+                    self.transModel.to(self.device)
             else:
                 kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelPath})
                 self.transTokenizer = transformers.AutoTokenizer.from_pretrained(**kwargsTokenizer)
@@ -286,7 +294,7 @@ class TranslationModel:
                     kwargsPipeline.update({"src_lang": self.whisperLang.m2m100.code, "tgt_lang": self.translationLang.m2m100.code})
                 else: #NLLB
                     kwargsPipeline.update({"src_lang": self.whisperLang.nllb.code, "tgt_lang": self.translationLang.nllb.code})
-            if "ct2" not in self.modelPath:
+            if not any(name in self.modelPath for name in ["ct2", "seamless"]):
                 self.transTranslator = transformers.pipeline(**kwargsPipeline)
         except Exception as e:
             self.release_vram()
@@ -310,6 +318,8 @@ class TranslationModel:
                     if getattr(self, "transModel", None) is not None and getattr(self.transModel, "unload_model", None) is not None:
                         self.transModel.unload_model()
                     
+                if getattr(self, "transProcessor") is not None:
+                    del self.transProcessor
                 if getattr(self, "transTokenizer", None) is not None:
                     del self.transTokenizer
                 if getattr(self, "transModel", None) is not None:
@@ -392,6 +402,13 @@ class TranslationModel:
             elif "madlad400" in self.modelPath:
                 output = self.transTranslator(self.madlad400Prefix + text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams) #, num_return_sequences=2
                 result = output[0]['generated_text']
+            elif "seamless" in self.modelPath:
+                if self.device != "cpu":
+                    text_inputs = self.transProcessor(text = text, src_lang=self.whisperLang.seamlessTx.code, return_tensors="pt").to(self.device)
+                else:
+                    text_inputs = self.transProcessor(text = text, src_lang=self.whisperLang.seamlessTx.code, return_tensors="pt")
+                output_tokens = self.transModel.generate(**text_inputs, tgt_lang=self.translationLang.seamlessTx.code, generate_speech=False, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
+                result = self.transProcessor.decode(output_tokens[0].tolist()[0], skip_special_tokens=True)
             else: #M2M100 & NLLB
                 output = self.transTranslator(text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
                 result = output[0]['translation_text']
@@ -406,7 +423,8 @@ _MODELS = ["nllb-200",
            "m2m100",
            "mt5",
            "ALMA",
-           "madlad400"]
+           "madlad400",
+           "seamless"]
 
 def check_model_name(name):
     return any(allowed_name in name for allowed_name in _MODELS)
@@ -466,7 +484,9 @@ def download_model(
         "model.safetensors.index.json",
         "quantize_config.json",
         "tokenizer.model",
-        "vocabulary.json"
+        "vocabulary.json",
+        "preprocessor_config.json",
+        "added_tokens.json"
     ]
 
     kwargs = {
