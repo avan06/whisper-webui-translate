@@ -318,7 +318,7 @@ class TranslationModel:
                     if getattr(self, "transModel", None) is not None and getattr(self.transModel, "unload_model", None) is not None:
                         self.transModel.unload_model()
                     
-                if getattr(self, "transProcessor") is not None:
+                if getattr(self, "transProcessor", None) is not None:
                     del self.transProcessor
                 if getattr(self, "transTokenizer", None) is not None:
                     del self.transTokenizer

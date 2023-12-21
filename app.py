@@ -114,22 +114,11 @@ class WhisperTranscriber:
             self.diarization.cleanup()
         self.diarization_kwargs = None
 
-    # Entry function for the simple tab, Queue mode disabled: progress bars will not be shown
-    def transcribe_webui_simple(self, data: dict): return self.transcribe_webui_simple_progress(data)
-    
-    # Entry function for the simple tab progress, Progress tracking requires queuing to be enabled
-    def transcribe_webui_simple_progress(self, data: dict, progress=gr.Progress()):
-        dataDict = {}
-        for key, value in data.items():
-            dataDict.update({key.elem_id: value})
-            
-        return self.transcribe_webui(dataDict, progress=progress)
+    # Entry function for the simple or full tab, Queue mode disabled: progress bars will not be shown
+    def transcribe_entry(self, data: dict): return self.transcribe_entry_progress(data)
 
-    # Entry function for the full tab, Queue mode disabled: progress bars will not be shown
-    def transcribe_webui_full(self, data: dict): return self.transcribe_webui_full_progress(data)
-
-    # Entry function for the full tab with progress, Progress tracking requires queuing to be enabled
-    def transcribe_webui_full_progress(self, data: dict, progress=gr.Progress()):
+    # Entry function for the simple or full tab with progress, Progress tracking requires queuing to be enabled
+    def transcribe_entry_progress(self, data: dict, progress=gr.Progress()):
         dataDict = {}
         for key, value in data.items():
             dataDict.update({key.elem_id: value})
@@ -1043,182 +1032,115 @@ def create_ui(app_config: ApplicationConfig):
 
     is_queue_mode = app_config.queue_concurrency_count is not None and app_config.queue_concurrency_count > 0
 
-    simpleInputDict = {}
-
-    with gr.Blocks() as simpleTranscribe:
-        simpleTranslateInput = gr.State(value="m2m100", elem_id = "translateInput")
-        simpleSourceInput = gr.State(value="urlData", elem_id = "sourceInput")
-        gr.Markdown(uiDescription)
-        with gr.Row():
-            with gr.Column():
-                simpleSubmit = gr.Button("Submit", variant="primary")
+    def create_transcribe(uiDescription: str, isQueueMode: bool, isFull: bool = False):
+        with gr.Blocks() as transcribe:
+            translateInput = gr.State(value="m2m100", elem_id = "translateInput")
+            sourceInput = gr.State(value="urlData", elem_id = "sourceInput")
+            gr.Markdown(uiDescription)
+            with gr.Row():
                 with gr.Column():
-                    with gr.Row():
-                        simpleInputDict = common_whisper_inputs()
-                    with gr.Tab(label="M2M100") as simpleM2M100Tab:
+                    submitBtn = gr.Button("Submit", variant="primary")
+                    with gr.Column():
                         with gr.Row():
-                            simpleInputDict.update(common_m2m100_inputs())
-                    with gr.Tab(label="NLLB") as simpleNllbTab:
-                        with gr.Row():
-                            simpleInputDict.update(common_nllb_inputs())
-                    with gr.Tab(label="MT5") as simpleMT5Tab:
-                        with gr.Row():
-                            simpleInputDict.update(common_mt5_inputs())
-                    with gr.Tab(label="ALMA") as simpleALMATab:
-                        with gr.Row():
-                            simpleInputDict.update(common_ALMA_inputs())
-                    with gr.Tab(label="madlad400") as simpleMadlad400Tab:
-                        with gr.Row():
-                            simpleInputDict.update(common_madlad400_inputs())
-                    with gr.Tab(label="seamless") as simpleSeamlessTab:
-                        with gr.Row():
-                            simpleInputDict.update(common_seamless_inputs())
-                    simpleM2M100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [simpleTranslateInput] )
-                    simpleNllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [simpleTranslateInput] )
-                    simpleMT5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [simpleTranslateInput] )
-                    simpleALMATab.select(fn=lambda: "ALMA", inputs = [], outputs= [simpleTranslateInput] )
-                    simpleMadlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [simpleTranslateInput] )
-                    simpleSeamlessTab.select(fn=lambda: "seamless", inputs = [], outputs= [simpleTranslateInput] )
+                            inputDict = common_whisper_inputs()
+                        with gr.Tab(label="M2M100") as m2m100Tab:
+                            with gr.Row():
+                                inputDict.update(common_m2m100_inputs())
+                        with gr.Tab(label="NLLB") as nllbTab:
+                            with gr.Row():
+                                inputDict.update(common_nllb_inputs())
+                        with gr.Tab(label="MT5") as mt5Tab:
+                            with gr.Row():
+                                inputDict.update(common_mt5_inputs())
+                        with gr.Tab(label="ALMA") as almaTab:
+                            with gr.Row():
+                                inputDict.update(common_ALMA_inputs())
+                        with gr.Tab(label="madlad400") as madlad400Tab:
+                            with gr.Row():
+                                inputDict.update(common_madlad400_inputs())
+                        with gr.Tab(label="seamless") as seamlessTab:
+                            with gr.Row():
+                                inputDict.update(common_seamless_inputs())
+                        m2m100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [translateInput] )
+                        nllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [translateInput] )
+                        mt5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [translateInput] )
+                        almaTab.select(fn=lambda: "ALMA", inputs = [], outputs= [translateInput] )
+                        madlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [translateInput] )
+                        seamlessTab.select(fn=lambda: "seamless", inputs = [], outputs= [translateInput] )
+                    with gr.Column():
+                        with gr.Tab(label="URL") as UrlTab:
+                            inputDict.update({gr.Text(label="URL (YouTube, etc.)", elem_id = "urlData")})
+                        with gr.Tab(label="Upload") as UploadTab:
+                            inputDict.update({gr.File(label="Upload Files", file_count="multiple", elem_id = "multipleFiles")})
+                        with gr.Tab(label="Microphone") as MicTab:
+                            inputDict.update({gr.Audio(source="microphone", type="filepath", label="Microphone Input", elem_id = "microphoneData")})
+                        UrlTab.select(fn=lambda: "urlData", inputs = [], outputs= [sourceInput] )
+                        UploadTab.select(fn=lambda: "multipleFiles", inputs = [], outputs= [sourceInput] )
+                        MicTab.select(fn=lambda: "microphoneData", inputs = [], outputs= [sourceInput] )
+                        inputDict.update({gr.Dropdown(choices=["transcribe", "translate"], label="Task", value=app_config.task, elem_id = "task")})
+                        with gr.Accordion("VAD options", open=False):
+                            inputDict.update(common_vad_inputs())
+                            if isFull:
+                                inputDict.update({
+                                    gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding, elem_id = "vadPadding"),
+                                    gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window, elem_id = "vadPromptWindow"),
+                                    gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode", value=app_config.vad_initial_prompt_mode, elem_id = "vadInitialPromptMode")})
+                        with gr.Accordion("Word Timestamps options", open=False):
+                            inputDict.update(common_word_timestamps_inputs())
+                            if isFull:
+                                inputDict.update({
+                                    gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations, elem_id = "prepend_punctuations"),
+                                    gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations, elem_id = "append_punctuations")})
+                        if isFull:
+                            with gr.Accordion("Whisper Advanced options", open=False):
+                                inputDict.update({
+                                    gr.TextArea(label="Initial Prompt", elem_id = "initial_prompt"),
+                                    gr.Number(label="Temperature", value=app_config.temperature, elem_id = "temperature"),
+                                    gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0, elem_id = "best_of"),
+                                    gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0, elem_id = "beam_size"),
+                                    gr.Number(label="Patience - Zero temperature", value=app_config.patience, elem_id = "patience"),
+                                    gr.Number(label="Length Penalty - Any temperature", value=lambda : None if app_config.length_penalty is None else app_config.length_penalty, elem_id = "length_penalty"),
+                                    gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens, elem_id = "suppress_tokens"),
+                                    gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text, elem_id = "condition_on_previous_text"),
+                                    gr.Checkbox(label="FP16", value=app_config.fp16, elem_id = "fp16"),
+                                    gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback, elem_id = "temperature_increment_on_fallback"),
+                                    gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold, elem_id = "compression_ratio_threshold"),
+                                    gr.Number(label="Logprob threshold", value=app_config.logprob_threshold, elem_id = "logprob_threshold"),
+                                    gr.Number(label="No speech threshold", value=app_config.no_speech_threshold, elem_id = "no_speech_threshold"),
+                                    })
+                                if app_config.whisper_implementation == "faster-whisper":
+                                    inputDict.update({
+                                        gr.Number(label="Repetition Penalty", value=app_config.repetition_penalty, elem_id = "repetition_penalty"),
+                                        gr.Number(label="No Repeat Ngram Size", value=app_config.no_repeat_ngram_size, precision=0, elem_id = "no_repeat_ngram_size")
+                                    })
+                        with gr.Accordion("Whisper Segments Filter options", open=False):
+                            inputDict.update(common_segments_filter_inputs())
+                        with gr.Accordion("Diarization options", open=False):
+                            inputDict.update(common_diarization_inputs())
+                        with gr.Accordion("Translation options", open=False):
+                            inputDict.update(common_translation_inputs())
                 with gr.Column():
-                    with gr.Tab(label="URL") as simpleUrlTab:
-                        simpleInputDict.update({gr.Text(label="URL (YouTube, etc.)", elem_id = "urlData")})
-                    with gr.Tab(label="Upload") as simpleUploadTab:
-                        simpleInputDict.update({gr.File(label="Upload Files", file_count="multiple", elem_id = "multipleFiles")})
-                    with gr.Tab(label="Microphone") as simpleMicTab:
-                        simpleInputDict.update({gr.Audio(source="microphone", type="filepath", label="Microphone Input", elem_id = "microphoneData")})
-                    simpleUrlTab.select(fn=lambda: "urlData", inputs = [], outputs= [simpleSourceInput] )
-                    simpleUploadTab.select(fn=lambda: "multipleFiles", inputs = [], outputs= [simpleSourceInput] )
-                    simpleMicTab.select(fn=lambda: "microphoneData", inputs = [], outputs= [simpleSourceInput] )
-                    simpleInputDict.update({gr.Dropdown(choices=["transcribe", "translate"], label="Task", value=app_config.task, elem_id = "task")})
-                    with gr.Accordion("VAD options", open=False):
-                        simpleInputDict.update(common_vad_inputs())
-                    with gr.Accordion("Word Timestamps options", open=False):
-                        simpleInputDict.update(common_word_timestamps_inputs())
-                    with gr.Accordion("Whisper Filter options", open=False):
-                        simpleInputDict.update(common_segments_filter_inputs())
-                    with gr.Accordion("Diarization options", open=False):
-                        simpleInputDict.update(common_diarization_inputs())
-                    with gr.Accordion("Translation options", open=False):
-                        simpleInputDict.update(common_translation_inputs())
-            with gr.Column():
-                simpleOutput = common_output()
-        gr.Markdown(uiArticle)
-        if optionsMd is not None:
-            with gr.Accordion("docs/options.md", open=False):    
-                gr.Markdown(optionsMd)
-        if translateModelMd is not None:
-            with gr.Accordion("docs/translateModel.md", open=False):    
-                gr.Markdown(translateModelMd)
-        if readmeMd is not None:
-            with gr.Accordion("README.md", open=False):    
-                gr.Markdown(readmeMd)
-        
-        simpleInputDict.update({simpleTranslateInput, simpleSourceInput})
-        simpleSubmit.click(fn=ui.transcribe_webui_simple_progress if is_queue_mode else ui.transcribe_webui_simple, 
-                    inputs=simpleInputDict, outputs=simpleOutput)
+                    outputs = common_output()
+            gr.Markdown(uiArticle)
+            if optionsMd is not None:
+                with gr.Accordion("docs/options.md", open=False):    
+                    gr.Markdown(optionsMd)
+            if translateModelMd is not None:
+                with gr.Accordion("docs/translateModel.md", open=False):    
+                    gr.Markdown(translateModelMd)
+            if readmeMd is not None:
+                with gr.Accordion("README.md", open=False):    
+                    gr.Markdown(readmeMd)
 
-    fullInputDict = {}
+            inputDict.update({translateInput, sourceInput})
+            submitBtn.click(fn=ui.transcribe_entry_progress if isQueueMode else ui.transcribe_entry,
+                        inputs=inputDict, outputs=outputs)
+            
+        return transcribe
+
+    simpleTranscribe = create_transcribe(uiDescription, is_queue_mode)
     fullDescription = uiDescription + "\n\n\n\n" + "Be careful when changing some of the options in the full interface - this can cause the model to crash."
-    
-    with gr.Blocks() as fullTranscribe:
-        fullTranslateInput = gr.State(value="m2m100", elem_id = "translateInput")
-        fullSourceInput = gr.State(value="urlData", elem_id = "sourceInput")
-        gr.Markdown(fullDescription)
-        with gr.Row():
-            with gr.Column():
-                fullSubmit = gr.Button("Submit", variant="primary")
-                with gr.Column():
-                    with gr.Row():
-                        fullInputDict = common_whisper_inputs()
-                    with gr.Tab(label="M2M100") as fullM2M100Tab:
-                        with gr.Row():
-                            fullInputDict.update(common_m2m100_inputs())
-                    with gr.Tab(label="NLLB") as fullNllbTab:
-                        with gr.Row():
-                            fullInputDict.update(common_nllb_inputs())
-                    with gr.Tab(label="MT5") as fullMT5Tab:
-                        with gr.Row():
-                            fullInputDict.update(common_mt5_inputs())
-                    with gr.Tab(label="ALMA") as fullALMATab:
-                        with gr.Row():
-                            fullInputDict.update(common_ALMA_inputs())
-                    with gr.Tab(label="madlad400") as fullMadlad400Tab:
-                        with gr.Row():
-                            fullInputDict.update(common_madlad400_inputs())
-                    with gr.Tab(label="seamless") as fullSeamlessTab:
-                        with gr.Row():
-                            fullInputDict.update(common_seamless_inputs())
-                    fullM2M100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [fullTranslateInput] )
-                    fullNllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [fullTranslateInput] )
-                    fullMT5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [fullTranslateInput] )
-                    fullALMATab.select(fn=lambda: "ALMA", inputs = [], outputs= [fullTranslateInput] )
-                    fullMadlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [fullTranslateInput] )
-                    fullSeamlessTab.select(fn=lambda: "seamless", inputs = [], outputs= [fullTranslateInput] )
-                with gr.Column():
-                    with gr.Tab(label="URL") as fullUrlTab:
-                        fullInputDict.update({gr.Text(label="URL (YouTube, etc.)", elem_id = "urlData")})
-                    with gr.Tab(label="Upload") as fullUploadTab:
-                        fullInputDict.update({gr.File(label="Upload Files", file_count="multiple", elem_id = "multipleFiles")})
-                    with gr.Tab(label="Microphone") as fullMicTab:
-                        fullInputDict.update({gr.Audio(source="microphone", type="filepath", label="Microphone Input", elem_id = "microphoneData")})
-                    fullUrlTab.select(fn=lambda: "urlData", inputs = [], outputs= [fullSourceInput] )
-                    fullUploadTab.select(fn=lambda: "multipleFiles", inputs = [], outputs= [fullSourceInput] )
-                    fullMicTab.select(fn=lambda: "microphoneData", inputs = [], outputs= [fullSourceInput] )
-                    fullInputDict.update({gr.Dropdown(choices=["transcribe", "translate"], label="Task", value=app_config.task, elem_id = "task")})
-                    with gr.Accordion("VAD options", open=False):
-                        fullInputDict.update(common_vad_inputs())
-                        fullInputDict.update({
-                            gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding, elem_id = "vadPadding"),
-                            gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window, elem_id = "vadPromptWindow"),
-                            gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode", value=app_config.vad_initial_prompt_mode, elem_id = "vadInitialPromptMode")})
-                    with gr.Accordion("Word Timestamps options", open=False):
-                        fullInputDict.update(common_word_timestamps_inputs())
-                        fullInputDict.update({
-                            gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations, elem_id = "prepend_punctuations"),
-                            gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations, elem_id = "append_punctuations")})
-                    with gr.Accordion("Whisper Advanced options", open=False):
-                        fullInputDict.update({
-                            gr.TextArea(label="Initial Prompt", elem_id = "initial_prompt"),
-                            gr.Number(label="Temperature", value=app_config.temperature, elem_id = "temperature"),
-                            gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0, elem_id = "best_of"),
-                            gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0, elem_id = "beam_size"),
-                            gr.Number(label="Patience - Zero temperature", value=app_config.patience, elem_id = "patience"),
-                            gr.Number(label="Length Penalty - Any temperature", value=lambda : None if app_config.length_penalty is None else app_config.length_penalty, elem_id = "length_penalty"),
-                            gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens, elem_id = "suppress_tokens"),
-                            gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text, elem_id = "condition_on_previous_text"),
-                            gr.Checkbox(label="FP16", value=app_config.fp16, elem_id = "fp16"),
-                            gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback, elem_id = "temperature_increment_on_fallback"),
-                            gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold, elem_id = "compression_ratio_threshold"),
-                            gr.Number(label="Logprob threshold", value=app_config.logprob_threshold, elem_id = "logprob_threshold"),
-                            gr.Number(label="No speech threshold", value=app_config.no_speech_threshold, elem_id = "no_speech_threshold"),
-                            })
-                        if app_config.whisper_implementation == "faster-whisper":
-                            fullInputDict.update({
-                                gr.Number(label="Repetition Penalty", value=app_config.repetition_penalty, elem_id = "repetition_penalty"),
-                                gr.Number(label="No Repeat Ngram Size", value=app_config.no_repeat_ngram_size, precision=0, elem_id = "no_repeat_ngram_size")
-                            })
-                    with gr.Accordion("Whisper Segments Filter options", open=False):
-                        fullInputDict.update(common_segments_filter_inputs())
-                    with gr.Accordion("Diarization options", open=False):
-                        fullInputDict.update(common_diarization_inputs())
-                    with gr.Accordion("Translation options", open=False):
-                        fullInputDict.update(common_translation_inputs())
-            with gr.Column():
-                fullOutput = common_output()
-        gr.Markdown(uiArticle)
-        if optionsMd is not None:
-            with gr.Accordion("docs/options.md", open=False):    
-                gr.Markdown(optionsMd)
-        if translateModelMd is not None:
-            with gr.Accordion("docs/translateModel.md", open=False):    
-                gr.Markdown(translateModelMd)
-        if readmeMd is not None:
-            with gr.Accordion("README.md", open=False):    
-                gr.Markdown(readmeMd)
-        
-        fullInputDict.update({fullTranslateInput, fullSourceInput})
-        fullSubmit.click(fn=ui.transcribe_webui_full_progress if is_queue_mode else ui.transcribe_webui_full,
-                    inputs=fullInputDict, outputs=fullOutput)
+    fullTranscribe = create_transcribe(fullDescription, is_queue_mode, True)
 
     demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe], tab_names=["Simple", "Full"], css=css)
 
