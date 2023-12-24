@@ -49,22 +49,25 @@ def _perform_download(url: str, maxDuration: int = None, outputTemplate: str = N
     
     filename_collector = FilenameCollectorPP()
     with redirect_stderr(errStrIO):
-        with YoutubeDL(ydl_opts) as ydl:
-            if maxDuration and maxDuration > 0:
-                info = ydl.extract_info(url, download=False)
-                entries = "entries" in info and info["entries"] or [info]
+        for _ in (True,):
+            with YoutubeDL(ydl_opts) as ydl:
+                if maxDuration and maxDuration > 0:
+                    info = ydl.extract_info(url, download=False)
+                    if not info: break
+                
+                    entries = "entries" in info and info["entries"] or [info]
 
-                total_duration = 0
+                    total_duration = 0
 
-                # Compute total duration
-                for entry in entries:
-                    total_duration += float(entry["duration"])
+                    # Compute total duration
+                    for entry in entries:
+                        if entry: total_duration += float(entry["duration"])
 
-                if total_duration >= maxDuration:
-                    raise ExceededMaximumDuration(videoDuration=total_duration, maxDuration=maxDuration, message="Video is too long")
+                    if total_duration >= maxDuration:
+                        raise ExceededMaximumDuration(videoDuration=total_duration, maxDuration=maxDuration, message="Video is too long")
 
-            ydl.add_post_processor(filename_collector)
-            ydl.download([url])
+                ydl.add_post_processor(filename_collector)
+                ydl.download([url])
 
     errMsg = errStrIO.getvalue()
     errMsg = [text for text in errMsg.split("\n") if text.startswith("ERROR")] if errMsg else ""
