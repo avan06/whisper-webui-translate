@@ -5,6 +5,9 @@ from yt_dlp import YoutubeDL
 import yt_dlp
 from yt_dlp.postprocessor import PostProcessor
 
+import io
+from contextlib import redirect_stderr
+
 class FilenameCollectorPP(PostProcessor):
     def __init__(self):
         super(FilenameCollectorPP, self).__init__(None)
@@ -42,27 +45,32 @@ def _perform_download(url: str, maxDuration: int = None, outputTemplate: str = N
     if outputTemplate:
         ydl_opts['outtmpl'] = outputTemplate
 
+    errStrIO = EventStringIO(on_write=lambda text: print(f"\033[91m{text}\033[0m"))
+    
     filename_collector = FilenameCollectorPP()
+    with redirect_stderr(errStrIO):
+        with YoutubeDL(ydl_opts) as ydl:
+            if maxDuration and maxDuration > 0:
+                info = ydl.extract_info(url, download=False)
+                entries = "entries" in info and info["entries"] or [info]
 
-    with YoutubeDL(ydl_opts) as ydl:
-        if maxDuration and maxDuration > 0:
-            info = ydl.extract_info(url, download=False)
-            entries = "entries" in info and info["entries"] or [info]
+                total_duration = 0
 
-            total_duration = 0
+                # Compute total duration
+                for entry in entries:
+                    total_duration += float(entry["duration"])
 
-            # Compute total duration
-            for entry in entries:
-                total_duration += float(entry["duration"])
+                if total_duration >= maxDuration:
+                    raise ExceededMaximumDuration(videoDuration=total_duration, maxDuration=maxDuration, message="Video is too long")
 
-            if total_duration >= maxDuration:
-                raise ExceededMaximumDuration(videoDuration=total_duration, maxDuration=maxDuration, message="Video is too long")
+            ydl.add_post_processor(filename_collector)
+            ydl.download([url])
 
-        ydl.add_post_processor(filename_collector)
-        ydl.download([url])
+    errMsg = errStrIO.getvalue()
+    errMsg = [text for text in errMsg.split("\n") if text.startswith("ERROR")] if errMsg else ""
 
     if len(filename_collector.filenames) <= 0:
-        raise Exception("Cannot download " + url)
+        raise Exception(f"Cannot download {url}, " + "\n".join(errMsg) if errMsg else "")
 
     result = []
 
@@ -70,10 +78,20 @@ def _perform_download(url: str, maxDuration: int = None, outputTemplate: str = N
         result.append(filename)
         print("Downloaded " + filename)
 
-    return result 
+    return result
 
 class ExceededMaximumDuration(Exception):
     def __init__(self, videoDuration, maxDuration, message):
         self.videoDuration = videoDuration
         self.maxDuration = maxDuration
         super().__init__(message)
+
+class EventStringIO(io.StringIO):
+    def __init__(self, on_write=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.on_write = on_write
+
+    def write(self, text):
+        super().write(text)
+        if self.on_write:
+            self.on_write(text)

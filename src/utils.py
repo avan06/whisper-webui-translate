@@ -1,12 +1,11 @@
-﻿import textwrap
-import unicodedata
-import re
+﻿import re
 
 import zlib
 from typing import Iterator, TextIO, Union
 import tqdm
 
 import urllib3
+import unicodedata
 
 
 def exact_div(x, y):
@@ -139,7 +138,7 @@ def write_srt_original(transcript: Iterator[dict], file: TextIO,
         file=file,
         flush=True)
 
-def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: int = None, highlight_words: bool = False): 
+def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: int = None, highlight_words: bool = False):
     for segment in transcript:
         words: list = segment.get('words', [])
 
@@ -236,45 +235,67 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
                 'text' : subtitle_text
             }
             if original_text is not None and len(original_text) > 0:
-                result.update({'original': original_text})
+                result.update({'original': process_text(original_text, maxLineWidth)})
             yield result
 
 def __join_words(words: Iterator[Union[str, dict]], maxLineWidth: int = None):
-    if maxLineWidth is None or maxLineWidth < 0:
-        return " ".join(words)
+    result = "".join(words)
     
-    lines = []
-    current_line = ""
-    current_length = 0
-
-    for entry in words:
-        # Either accept a string or a dict with a 'word' and 'length' field
-        if isinstance(entry, dict):
-            word = entry['word']
-            word_length = entry['length']
-        else:
-            word = entry
-            word_length = len(word)
-
-        if current_length > 0 and current_length + word_length > maxLineWidth:
-            lines.append(current_line)
-            current_line = ""
-            current_length = 0
-        
-        current_length += word_length
-        # The word will be prefixed with a space by Whisper, so we don't need to add one here
-        current_line += word
-
-    if len(current_line) > 0:
-        lines.append(current_line)
-
-    return "\n".join(lines)
+    if maxLineWidth is None or maxLineWidth < 0:
+        return result
+    
+    return process_text(result, maxLineWidth)
 
 def process_text(text: str, maxLineWidth=None):
+    """
+    Use east_asian_width to automatically determine the Character Width of the string, replacing the textwrap.wrap function.
+    
+    # East_Asian_Width (ea)
+
+    ea ; A         ; Ambiguous
+    ea ; F         ; Fullwidth
+    ea ; H         ; Halfwidth
+    ea ; N         ; Neutral
+    ea ; Na        ; Narrow
+    ea ; W         ; Wide
+    https://stackoverflow.com/a/31666966
+    """
     if (maxLineWidth is None or maxLineWidth < 0):
         return text
 
-    lines = textwrap.wrap(text, width=maxLineWidth, tabsize=4)
+    lines = []
+    currentLine = ""
+    currentWidth = 0
+    
+    for word in text.split():
+        wordWidth = 0
+        wordStart = 0
+        if currentLine:
+            currentLine += " "
+            wordWidth += 1
+        for wordIdx, char in enumerate(word):
+            if unicodedata.east_asian_width(char) not in {'W', 'F'}:
+                wordWidth += 1
+            else:
+                if currentWidth + wordWidth + 2 > maxLineWidth:
+                    lines.append(currentLine + word[wordStart:wordIdx])
+                    currentLine = ""
+                    currentWidth = 0
+                    wordStart = wordIdx
+                    wordWidth = 0
+                wordWidth += 2
+                
+        if currentWidth + wordWidth > maxLineWidth:
+            lines.append(currentLine)
+            currentLine = word[wordStart:]
+            currentWidth = wordWidth
+        else:
+            currentLine += word[wordStart:]
+            currentWidth += wordWidth
+    
+    if currentLine:
+        lines.append(currentLine)
+
     return '\n'.join(lines)
 
 def slugify(value, allow_unicode=False, is_lower=False):

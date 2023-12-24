@@ -369,7 +369,7 @@ class WhisperTranscriber:
                     selectedModel = next((modelConfig for modelConfig in self.app_config.models["madlad400"] if modelConfig.name == selectedModelName), None)
                     translationLang = get_lang_from_m2m100_name(madlad400LangName)
                 elif translateInput == "seamless" and seamlessLangName is not None and len(seamlessLangName) > 0:
-                    selectedModelName = seamlessModelName if seamlessModelName is not None and len(seamlessModelName) > 0 else "facebook/seamless-m4t-v2-large"
+                    selectedModelName = seamlessModelName if seamlessModelName is not None and len(seamlessModelName) > 0 else "seamless-m4t-v2-large/facebook"
                     selectedModel = next((modelConfig for modelConfig in self.app_config.models["seamless"] if modelConfig.name == selectedModelName), None)
                     translationLang = get_lang_from_seamlessTx_name(seamlessLangName)
                     
@@ -383,6 +383,7 @@ class WhisperTranscriber:
                 zip_file_lookup = {}
                 text = ""
                 vtt = ""
+                filterLogs = ""
 
                 # Write result
                 downloadDirectory = tempfile.mkdtemp()
@@ -418,9 +419,9 @@ class WhisperTranscriber:
                     # Transcribe
                     result = self.transcribe_file(model, source.source_path, whisperLangCode, task, vadOptions, scaled_progress_listener, **decodeOptions)
                     filterLog = result.get("filterLog", None)
-                    filterLogText = [gr.Text.update(visible=False)]
                     if filterLog:
-                        filterLogText = [gr.Text.update(visible=True, value=filterLog)]
+                        filterLogs += source.get_full_name() + ":\n" + filterLog + "\n\n"
+
                     if translationModel is not None and whisperLang is None and result["language"] is not None and len(result["language"]) > 0:
                         whisperLang = get_lang_from_whisper_code(result["language"])
                         translationModel.whisperLang = whisperLang
@@ -499,6 +500,10 @@ class WhisperTranscriber:
                             zip.write(download_file, arcname=zip_file_name)
 
                     download.insert(0, downloadAllPath)
+                    
+                filterLogText = [gr.Text.update(visible=False)]
+                if filterLogs:
+                    filterLogText = [gr.Text.update(visible=True, value=filterLogs)]
                 
                 return [download, text, vtt] + filterLogText
 
@@ -656,10 +661,11 @@ class WhisperTranscriber:
                             if isFilter: break
                     if isFilter: break
                 if isFilter:
-                    filterIdx += 1
-                    filterLog.append(f"filter{filterIdx:03d} [{filterCondition}]:")
                     filterLog.append(f"\t{querySegment}\n")
                     del querySegmentsResult[currentID]
+                    
+            if filterLog:
+                filterLog = [f"filter{idx:03d} [{filterCondition}]:\n{log}" for idx, log in enumerate(reversed(filterLog))]
 
             return querySegmentsResult, "\n".join(filterLog)
         except Exception as e:
@@ -740,7 +746,7 @@ class WhisperTranscriber:
         text = result["text"]
         segments = result["segments"]
         language = result["language"]
-        languageMaxLineWidth = self.__get_max_line_width(language)
+        languageMaxLineWidth = 80 #Use east_asian_width to automatically determine the Character Width of the string, replacing the __get_max_line_width function. 80 latin characters should fit on a 1080p/720p screen
 
         if translationModel is not None and translationModel.translationLang is not None:
             try:
@@ -769,7 +775,7 @@ class WhisperTranscriber:
                 print(traceback.format_exc())
                 print("Error process segments: " + str(e))
 
-        print("Max line width " + str(languageMaxLineWidth) + " for language:" + language)
+        print("Max line Character Width " + str(languageMaxLineWidth) + " for language:" + language)
         vtt = self.__get_subs(result["segments"], "vtt", languageMaxLineWidth, highlight_words=highlight_words)
         srt = self.__get_subs(result["segments"], "srt", languageMaxLineWidth, highlight_words=highlight_words)
         json_result = json.dumps(result, indent=4, ensure_ascii=False)
@@ -826,15 +832,6 @@ class WhisperTranscriber:
 
     def __get_source(self, urlData, multipleFiles, microphoneData):
         return get_audio_source_collection(urlData, multipleFiles, microphoneData, self.inputAudioMaxDuration)
-
-    def __get_max_line_width(self, language: str) -> int:
-        if (language and language.lower() in ["japanese", "ja", "chinese", "zh"]):
-            # Chinese characters and kana are wider, so limit line length to 40 characters
-            return 40
-        else:
-            # TODO: Add more languages
-            # 80 latin characters should fit on a 1080p/720p screen
-            return 80
 
     def __get_subs(self, segments: Iterator[dict], format: str, maxLineWidth: int, highlight_words: bool = False) -> str:
         segmentStream = StringIO()
@@ -1010,7 +1007,7 @@ def create_ui(app_config: ApplicationConfig):
     }
     
     common_output = lambda : [
-        gr.File(label="Download", elem_id="outputDownload"),
+        gr.File(label="Download", height=200, elem_id="outputDownload"),
         gr.Text(label="Transcription", autoscroll=False, show_copy_button=True, interactive=True, elem_id="outputTranscription", elem_classes="scroll-show"),
         gr.Text(label="Segments", autoscroll=False, show_copy_button=True, interactive=True, elem_id="outputSegments", elem_classes="scroll-show"),
         gr.Text(label="Filtered segment items", autoscroll=False, visible=False, show_copy_button=True, interactive=True, elem_id="outputFiltered", elem_classes="scroll-show"),
