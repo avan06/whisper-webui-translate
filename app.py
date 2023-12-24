@@ -42,6 +42,7 @@ from src.translation.translationLangs import (TranslationLang,
                                               _TO_LANG_CODE_WHISPER, sort_lang_by_whisper_codes,
                                               get_lang_from_whisper_name, get_lang_from_whisper_code, get_lang_from_nllb_name, get_lang_from_m2m100_name, get_lang_from_seamlessTx_name, 
                                               get_lang_whisper_names, get_lang_nllb_names, get_lang_m2m100_names, get_lang_seamlessTx_names)
+import re
 import shutil
 import zhconv
 import tqdm
@@ -214,26 +215,6 @@ class WhisperTranscriber:
             whisperModelName: str = decodeOptions.pop("whisperModelName")
             whisperLangName:  str = decodeOptions.pop("whisperLangName")
 
-            translateInput:   str = decodeOptions.pop("translateInput")
-            m2m100ModelName:  str = decodeOptions.pop("m2m100ModelName")
-            m2m100LangName:   str = decodeOptions.pop("m2m100LangName")
-            nllbModelName:    str = decodeOptions.pop("nllbModelName")
-            nllbLangName:     str = decodeOptions.pop("nllbLangName")
-            mt5ModelName:     str = decodeOptions.pop("mt5ModelName")
-            mt5LangName:      str = decodeOptions.pop("mt5LangName")
-            ALMAModelName:    str = decodeOptions.pop("ALMAModelName")
-            ALMALangName:     str = decodeOptions.pop("ALMALangName")
-            madlad400ModelName: str = decodeOptions.pop("madlad400ModelName")
-            madlad400LangName:  str = decodeOptions.pop("madlad400LangName")
-            seamlessModelName: str = decodeOptions.pop("seamlessModelName")
-            seamlessLangName:  str = decodeOptions.pop("seamlessLangName")
-            
-            translationBatchSize:         int  = decodeOptions.pop("translationBatchSize")
-            translationNoRepeatNgramSize: int  = decodeOptions.pop("translationNoRepeatNgramSize")
-            translationNumBeams:          int  = decodeOptions.pop("translationNumBeams")
-            translationTorchDtypeFloat16: bool = decodeOptions.pop("translationTorchDtypeFloat16")
-            translationUsingBitsandbytes: str  = decodeOptions.pop("translationUsingBitsandbytes")
-
             sourceInput:    str  = decodeOptions.pop("sourceInput")
             urlData:        str  = decodeOptions.pop("urlData")
             multipleFiles:  List = decodeOptions.pop("multipleFiles")
@@ -346,36 +327,7 @@ class WhisperTranscriber:
                                                  cache=self.model_cache, models=self.app_config.models["whisper"])
                 
                 progress(0, desc="init translate model")
-                translationLang = None
-                translationModel = None
-                if translateInput == "m2m100" and m2m100LangName is not None and len(m2m100LangName) > 0:
-                    selectedModelName = m2m100ModelName if m2m100ModelName is not None and len(m2m100ModelName) > 0 else "m2m100_418M/facebook"
-                    selectedModel = next((modelConfig for modelConfig in self.app_config.models["m2m100"] if modelConfig.name == selectedModelName), None)
-                    translationLang = get_lang_from_m2m100_name(m2m100LangName)
-                elif translateInput == "nllb" and nllbLangName is not None and len(nllbLangName) > 0:
-                    selectedModelName = nllbModelName if nllbModelName is not None and len(nllbModelName) > 0 else "nllb-200-distilled-600M/facebook"
-                    selectedModel = next((modelConfig for modelConfig in self.app_config.models["nllb"] if modelConfig.name == selectedModelName), None)
-                    translationLang = get_lang_from_nllb_name(nllbLangName)
-                elif translateInput == "mt5" and mt5LangName is not None and len(mt5LangName) > 0:
-                    selectedModelName = mt5ModelName if mt5ModelName is not None and len(mt5ModelName) > 0 else "mt5-zh-ja-en-trimmed/K024"
-                    selectedModel = next((modelConfig for modelConfig in self.app_config.models["mt5"] if modelConfig.name == selectedModelName), None)
-                    translationLang = get_lang_from_m2m100_name(mt5LangName)
-                elif translateInput == "ALMA" and ALMALangName is not None and len(ALMALangName) > 0:
-                    selectedModelName = ALMAModelName if ALMAModelName is not None and len(ALMAModelName) > 0 else "ALMA-7B-ct2:int8_float16/avan"
-                    selectedModel = next((modelConfig for modelConfig in self.app_config.models["ALMA"] if modelConfig.name == selectedModelName), None)
-                    translationLang = get_lang_from_m2m100_name(ALMALangName)
-                elif translateInput == "madlad400" and madlad400LangName is not None and len(madlad400LangName) > 0:
-                    selectedModelName = madlad400ModelName if madlad400ModelName is not None and len(madlad400ModelName) > 0 else "madlad400-3b-mt-ct2-int8_float16/SoybeanMilk"
-                    selectedModel = next((modelConfig for modelConfig in self.app_config.models["madlad400"] if modelConfig.name == selectedModelName), None)
-                    translationLang = get_lang_from_m2m100_name(madlad400LangName)
-                elif translateInput == "seamless" and seamlessLangName is not None and len(seamlessLangName) > 0:
-                    selectedModelName = seamlessModelName if seamlessModelName is not None and len(seamlessModelName) > 0 else "seamless-m4t-v2-large/facebook"
-                    selectedModel = next((modelConfig for modelConfig in self.app_config.models["seamless"] if modelConfig.name == selectedModelName), None)
-                    translationLang = get_lang_from_seamlessTx_name(seamlessLangName)
-                    
-
-                if translationLang is not None:
-                    translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=whisperLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams, torchDtypeFloat16=translationTorchDtypeFloat16, usingBitsandbytes=translationUsingBitsandbytes)
+                translationLang, translationModel = self.initTranslationModel(whisperLangName, whisperLang, decodeOptions)
 
                 progress(0, desc="init transcribe")
                 # Result
@@ -871,6 +823,123 @@ class WhisperTranscriber:
             self.diarization.cleanup()
             self.diarization = None
 
+    # Entry function for the simple or full tab, Queue mode disabled: progress bars will not be shown
+    def translation_entry(self, data: dict): return self.translation_entry_progress(data)
+
+    # Entry function for the simple or full tab with progress, Progress tracking requires queuing to be enabled
+    def translation_entry_progress(self, data: dict, progress=gr.Progress()):
+        dataDict = {}
+        for key, value in data.items():
+            dataDict.update({key.elem_id: value})
+            
+        return self.translation_webui(dataDict, progress=progress)
+    
+    def translation_webui(self, dataDict: dict, progress: gr.Progress = None):
+        try:
+            inputText:          str = dataDict.pop("inputText")
+            inputLangName:      str = dataDict.pop("inputLangName")
+            inputLang: TranslationLang = get_lang_from_whisper_name(inputLangName)
+            
+            progress(0, desc="init translate model")
+            translationLang, translationModel = self.initTranslationModel(inputLangName, inputLang, dataDict)
+
+            result = []
+            if translationModel and translationModel.translationLang:
+                try:
+                    inputTexts = inputText.split("\n")
+
+                    progress(0, desc="Translation starting...")
+                    
+                    perf_start_time = time.perf_counter()
+                    translationModel.load_model()
+                    for idx, text in enumerate(tqdm.tqdm(inputTexts)):
+                        if not text or re.match("""^[\u2000-\u206F\u2E00-\u2E7F\\'!"#$%&()*+,\-.\/:;<=>?@\[\]^_`{|}~\d ]+$""", text.strip()):
+                            result.append(text)
+                        else:
+                            result.append(translationModel.translation(text))
+                        progress((idx+1)/len(inputTexts), desc=f"Process inputText: {idx+1}/{len(inputTexts)}")
+
+                    translationModel.release_vram()
+                    perf_end_time = time.perf_counter()
+                    # Call the finished callback
+                    progress(1, desc=f"Process inputText: {idx+1}/{len(inputTexts)}")
+
+                    print("\n\nprocess inputText took {} seconds.\n\n".format(perf_end_time - perf_start_time))
+                except Exception as e:
+                    print(traceback.format_exc())
+                    print("Error process inputText: " + str(e))
+
+            resultStr = "\n".join(result)
+            
+            translationZho: bool = translationModel and translationModel.translationLang and translationModel.translationLang.nllb and translationModel.translationLang.nllb.code in ["zho_Hant", "zho_Hans", "yue_Hant"]
+            if translationZho:
+                if translationModel.translationLang.nllb.code == "zho_Hant":
+                    locale = "zh-tw"
+                elif translationModel.translationLang.nllb.code == "zho_Hans":
+                    locale = "zh-cn"
+                elif translationModel.translationLang.nllb.code == "yue_Hant":
+                    locale = "zh-hk"
+                resultStr = zhconv.convert(resultStr, locale)
+                
+            return resultStr
+        except Exception as e:
+            print(traceback.format_exc())
+            return "Error occurred during transcribe: " + str(e) + "\n\n" + traceback.format_exc()
+    
+    def initTranslationModel(self, inputLangName: str, inputLang: TranslationLang, dataDict: dict):
+        translateInput:     str = dataDict.pop("translateInput")
+        m2m100ModelName:    str = dataDict.pop("m2m100ModelName")
+        m2m100LangName:     str = dataDict.pop("m2m100LangName")
+        nllbModelName:      str = dataDict.pop("nllbModelName")
+        nllbLangName:       str = dataDict.pop("nllbLangName")
+        mt5ModelName:       str = dataDict.pop("mt5ModelName")
+        mt5LangName:        str = dataDict.pop("mt5LangName")
+        ALMAModelName:      str = dataDict.pop("ALMAModelName")
+        ALMALangName:       str = dataDict.pop("ALMALangName")
+        madlad400ModelName: str = dataDict.pop("madlad400ModelName")
+        madlad400LangName:  str = dataDict.pop("madlad400LangName")
+        seamlessModelName:  str = dataDict.pop("seamlessModelName")
+        seamlessLangName:   str = dataDict.pop("seamlessLangName")
+        
+        translationBatchSize:         int  = dataDict.pop("translationBatchSize")
+        translationNoRepeatNgramSize: int  = dataDict.pop("translationNoRepeatNgramSize")
+        translationNumBeams:          int  = dataDict.pop("translationNumBeams")
+        translationTorchDtypeFloat16: bool = dataDict.pop("translationTorchDtypeFloat16")
+        translationUsingBitsandbytes: str  = dataDict.pop("translationUsingBitsandbytes")
+        
+        translationLang = None
+        translationModel = None
+        if translateInput == "m2m100" and m2m100LangName is not None and len(m2m100LangName) > 0:
+            selectedModelName = m2m100ModelName if m2m100ModelName is not None and len(m2m100ModelName) > 0 else "m2m100_418M/facebook"
+            selectedModel = next((modelConfig for modelConfig in self.app_config.models["m2m100"] if modelConfig.name == selectedModelName), None)
+            translationLang = get_lang_from_m2m100_name(m2m100LangName)
+        elif translateInput == "nllb" and nllbLangName is not None and len(nllbLangName) > 0:
+            selectedModelName = nllbModelName if nllbModelName is not None and len(nllbModelName) > 0 else "nllb-200-distilled-600M/facebook"
+            selectedModel = next((modelConfig for modelConfig in self.app_config.models["nllb"] if modelConfig.name == selectedModelName), None)
+            translationLang = get_lang_from_nllb_name(nllbLangName)
+        elif translateInput == "mt5" and mt5LangName is not None and len(mt5LangName) > 0:
+            selectedModelName = mt5ModelName if mt5ModelName is not None and len(mt5ModelName) > 0 else "mt5-zh-ja-en-trimmed/K024"
+            selectedModel = next((modelConfig for modelConfig in self.app_config.models["mt5"] if modelConfig.name == selectedModelName), None)
+            translationLang = get_lang_from_m2m100_name(mt5LangName)
+        elif translateInput == "ALMA" and ALMALangName is not None and len(ALMALangName) > 0:
+            selectedModelName = ALMAModelName if ALMAModelName is not None and len(ALMAModelName) > 0 else "ALMA-7B-ct2:int8_float16/avan"
+            selectedModel = next((modelConfig for modelConfig in self.app_config.models["ALMA"] if modelConfig.name == selectedModelName), None)
+            translationLang = get_lang_from_m2m100_name(ALMALangName)
+        elif translateInput == "madlad400" and madlad400LangName is not None and len(madlad400LangName) > 0:
+            selectedModelName = madlad400ModelName if madlad400ModelName is not None and len(madlad400ModelName) > 0 else "madlad400-3b-mt-ct2-int8_float16/SoybeanMilk"
+            selectedModel = next((modelConfig for modelConfig in self.app_config.models["madlad400"] if modelConfig.name == selectedModelName), None)
+            translationLang = get_lang_from_m2m100_name(madlad400LangName)
+        elif translateInput == "seamless" and seamlessLangName is not None and len(seamlessLangName) > 0:
+            selectedModelName = seamlessModelName if seamlessModelName is not None and len(seamlessModelName) > 0 else "seamless-m4t-v2-large/facebook"
+            selectedModel = next((modelConfig for modelConfig in self.app_config.models["seamless"] if modelConfig.name == selectedModelName), None)
+            translationLang = get_lang_from_seamlessTx_name(seamlessLangName)
+
+        if translationLang is not None:
+            translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=inputLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams, torchDtypeFloat16=translationTorchDtypeFloat16, usingBitsandbytes=translationUsingBitsandbytes)
+           
+        return translationLang, translationModel
+
+
 def create_ui(app_config: ApplicationConfig):
     translateModelMd: str = None
     optionsMd: str = None
@@ -1135,11 +1204,63 @@ def create_ui(app_config: ApplicationConfig):
             
         return transcribe
 
+    def create_translation(isQueueMode: bool):
+        with gr.Blocks() as translation:
+            translateInput = gr.State(value="m2m100", elem_id = "translateInput")
+            with gr.Row():
+                with gr.Column():
+                    submitBtn = gr.Button("Submit", variant="primary")
+                    with gr.Column():
+                        with gr.Tab(label="M2M100") as m2m100Tab:
+                            with gr.Row():
+                                inputDict = common_m2m100_inputs()
+                        with gr.Tab(label="NLLB") as nllbTab:
+                            with gr.Row():
+                                inputDict.update(common_nllb_inputs())
+                        with gr.Tab(label="MT5") as mt5Tab:
+                            with gr.Row():
+                                inputDict.update(common_mt5_inputs())
+                        with gr.Tab(label="ALMA") as almaTab:
+                            with gr.Row():
+                                inputDict.update(common_ALMA_inputs())
+                        with gr.Tab(label="madlad400") as madlad400Tab:
+                            with gr.Row():
+                                inputDict.update(common_madlad400_inputs())
+                        with gr.Tab(label="seamless") as seamlessTab:
+                            with gr.Row():
+                                inputDict.update(common_seamless_inputs())
+                        m2m100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [translateInput] )
+                        nllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [translateInput] )
+                        mt5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [translateInput] )
+                        almaTab.select(fn=lambda: "ALMA", inputs = [], outputs= [translateInput] )
+                        madlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [translateInput] )
+                        seamlessTab.select(fn=lambda: "seamless", inputs = [], outputs= [translateInput] )
+                    with gr.Column():
+                        inputDict.update({
+                            gr.Dropdown(label="Input - Language", choices=sorted(get_lang_whisper_names()), value=app_config.language, elem_id="inputLangName"),
+                            gr.Text(lines=5, label="Input - Text", elem_id="inputText", elem_classes="scroll-show"),
+                        })
+                    with gr.Column():
+                        with gr.Accordion("Translation options", open=False):
+                            inputDict.update(common_translation_inputs())
+                with gr.Column():
+                    outputs = [gr.Text(label="Translation Text", autoscroll=False, show_copy_button=True, interactive=True, elem_id="outputTranslationText", elem_classes="scroll-show"),]
+            if translateModelMd is not None:
+                with gr.Accordion("docs/translateModel.md", open=False):    
+                    gr.Markdown(translateModelMd)
+
+            inputDict.update({translateInput})
+            submitBtn.click(fn=ui.translation_entry_progress if isQueueMode else ui.translation_entry,
+                        inputs=inputDict, outputs=outputs)
+            
+        return translation
+
     simpleTranscribe = create_transcribe(uiDescription, is_queue_mode)
     fullDescription = uiDescription + "\n\n\n\n" + "Be careful when changing some of the options in the full interface - this can cause the model to crash."
     fullTranscribe = create_transcribe(fullDescription, is_queue_mode, True)
+    uiTranslation = create_translation(is_queue_mode)
 
-    demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe], tab_names=["Simple", "Full"], css=css)
+    demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe, uiTranslation], tab_names=["Simple", "Full", "Translation"], css=css)
 
     # Queue up the demo
     if is_queue_mode:

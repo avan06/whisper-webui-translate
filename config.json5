@@ -249,6 +249,12 @@
         "tokenizer_url": "jbochi/madlad400-3b-mt"
       },
       {
+        "name": "madlad400-7b-mt-bt-ct2-int8_float16/avan",
+        "url": "avans06/madlad400-7b-mt-bt-ct2-int8_float16",
+        "type": "huggingface",
+        "tokenizer_url": "jbochi/madlad400-7b-mt-bt"
+      },
+      {
         "name": "madlad400-10b-mt-ct2-int8_float16/SoybeanMilk",
         "url": "SoybeanMilk/madlad400-10b-mt-ct2-int8_float16",
         "type": "huggingface",

@@ -129,6 +129,7 @@ madlad400 is a multilingual machine translation model based on the T5 architectu
 | Name | Parameters | Size | type/quantize | Required VRAM |
 |------|------------|------|---------------|---------------|
 | [SoybeanMilk/madlad400-3b-mt-ct2-int8_float16](https://huggingface.co/SoybeanMilk/madlad400-3b-mt-ct2-int8_float16) | 3B | 2.95 GB | int8_float16 | ≈2.7 GB |
+| [avans06/madlad400-7b-mt-bt-ct2-int8_float16](https://huggingface.co/avans06/madlad400-7b-mt-bt-ct2-int8_float16) | 7.2B | 8.31 GB | int8_float16 (finetuned on backtranslated data) | ≈8.5 GB |
 | [SoybeanMilk/madlad400-10b-mt-ct2-int8_float16](https://huggingface.co/SoybeanMilk/madlad400-10b-mt-ct2-int8_float16) | 10.7B | 10.7 GB | int8_float16 | ≈10 GB |
 
 ## SeamlessM4T
