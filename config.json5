@@ -419,9 +419,9 @@
   // Translation - The maximum batch size.
   "translation_batch_size": 2,
   // Translation - Prevent repetitions of ngrams with this size (set 0 to disable).
-  "translation_no_repeat_ngram_size": 3,
+  "translation_no_repeat_ngram_size": 4,
   // Translation - Beam size (1 for greedy search).
-  "translation_num_beams": 2,
+  "translation_num_beams": 3,
   // Translation - Torch Dtype float16, Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to quantized models, such as Ctranslate2, GPTQ, GGUF).
   "translation_torch_dtype_float16": true,
   // Translation - Using Bitsandbytes, Load the float32 translation model into mixed-8bit or 4bit precision quantized model(not applicable to quantized models, such as Ctranslate2, GPTQ, GGUF).

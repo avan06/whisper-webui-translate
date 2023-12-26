@@ -80,8 +80,8 @@ class ApplicationConfig:
                  diarization_process_timeout: int = 60,
                  # Translation
                  translation_batch_size: int = 2,
-                 translation_no_repeat_ngram_size: int = 3,
-                 translation_num_beams: int = 2,
+                 translation_no_repeat_ngram_size: int = 4,
+                 translation_num_beams: int = 3,
                  translation_torch_dtype_float16: bool = True,
                  translation_using_bitsandbytes: str = None,
                  # Whisper Segments Filter

@@ -404,10 +404,10 @@ class TranslationModel:
                 result = output[0]['generated_text']
             elif "seamless" in self.modelPath:
                 if self.device != "cpu":
-                    text_inputs = self.transProcessor(text = text, src_lang=self.whisperLang.seamlessTx.code, return_tensors="pt").to(self.device)
+                    text_inputs = self.transProcessor(text = text, src_lang=self.whisperLang.seamlessT_Tx.code, return_tensors="pt").to(self.device)
                 else:
-                    text_inputs = self.transProcessor(text = text, src_lang=self.whisperLang.seamlessTx.code, return_tensors="pt")
-                output_tokens = self.transModel.generate(**text_inputs, tgt_lang=self.translationLang.seamlessTx.code, generate_speech=False, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
+                    text_inputs = self.transProcessor(text = text, src_lang=self.whisperLang.seamlessT_Tx.code, return_tensors="pt")
+                output_tokens = self.transModel.generate(**text_inputs, tgt_lang=self.translationLang.seamlessT_Tx.code, generate_speech=False, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
                 result = self.transProcessor.decode(output_tokens[0].tolist()[0], skip_special_tokens=True)
             else: #M2M100 & NLLB
                 output = self.transTranslator(text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)

@@ -40,8 +40,8 @@ from src.whisper.whisperFactory import create_whisper_container
 from src.translation.translationModel import TranslationModel
 from src.translation.translationLangs import (TranslationLang,
                                               _TO_LANG_CODE_WHISPER, sort_lang_by_whisper_codes,
-                                              get_lang_from_whisper_name, get_lang_from_whisper_code, get_lang_from_nllb_name, get_lang_from_m2m100_name, get_lang_from_seamlessTx_name, 
-                                              get_lang_whisper_names, get_lang_nllb_names, get_lang_m2m100_names, get_lang_seamlessTx_names)
+                                              get_lang_from_whisper_name, get_lang_from_whisper_code, get_lang_from_nllb_name, get_lang_from_m2m100_name, get_lang_from_seamlessT_Tx_name, 
+                                              get_lang_whisper_names, get_lang_nllb_names, get_lang_m2m100_names, get_lang_seamlessT_Tx_names)
 import re
 import shutil
 import zhconv
@@ -842,6 +842,9 @@ class WhisperTranscriber:
             
             progress(0, desc="init translate model")
             translationLang, translationModel = self.initTranslationModel(inputLangName, inputLang, dataDict)
+            
+            translationEnbaleBilingual:  bool = dataDict.pop("translationEnbaleBilingual")
+            translationDetectLineBreaks: bool = dataDict.pop("translationDetectLineBreaks")
 
             result = []
             if translationModel and translationModel.translationLang:
@@ -852,12 +855,30 @@ class WhisperTranscriber:
                     
                     perf_start_time = time.perf_counter()
                     translationModel.load_model()
+                    
+                    def doTranslation(text: str):
+                        if translationEnbaleBilingual:
+                            result.append(text)
+                        result.append(translationModel.translation(text))
+
+                    temporaryText = ""
                     for idx, text in enumerate(tqdm.tqdm(inputTexts)):
                         if not text or re.match("""^[\u2000-\u206F\u2E00-\u2E7F\\'!"#$%&()*+,\-.\/:;<=>?@\[\]^_`{|}~\d ]+$""", text.strip()):
+                            if temporaryText:
+                                doTranslation(temporaryText)
+                                temporaryText = ""
                             result.append(text)
                         else:
-                            result.append(translationModel.translation(text))
+                            if translationDetectLineBreaks and ((not text.rstrip().endswith(".") and not text.rstrip().endswith("。")) or temporaryText):
+                                if temporaryText:
+                                    temporaryText = temporaryText.rstrip() + " "
+                                temporaryText += text
+                                continue
+                            doTranslation(text)
                         progress((idx+1)/len(inputTexts), desc=f"Process inputText: {idx+1}/{len(inputTexts)}")
+
+                    if temporaryText:
+                        doTranslation(temporaryText)
 
                     translationModel.release_vram()
                     perf_end_time = time.perf_counter()
@@ -932,7 +953,7 @@ class WhisperTranscriber:
         elif translateInput == "seamless" and seamlessLangName is not None and len(seamlessLangName) > 0:
             selectedModelName = seamlessModelName if seamlessModelName is not None and len(seamlessModelName) > 0 else "seamless-m4t-v2-large/facebook"
             selectedModel = next((modelConfig for modelConfig in self.app_config.models["seamless"] if modelConfig.name == selectedModelName), None)
-            translationLang = get_lang_from_seamlessTx_name(seamlessLangName)
+            translationLang = get_lang_from_seamlessT_Tx_name(seamlessLangName)
 
         if translationLang is not None:
             translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=inputLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams, torchDtypeFloat16=translationTorchDtypeFloat16, usingBitsandbytes=translationUsingBitsandbytes)
@@ -1034,7 +1055,7 @@ def create_ui(app_config: ApplicationConfig):
     }
     common_seamless_inputs = lambda : {
         gr.Dropdown(label="seamless - Model (for translate)", choices=seamless_models, elem_id="seamlessModelName"),
-        gr.Dropdown(label="seamless - Language", choices=sorted(get_lang_seamlessTx_names()), elem_id="seamlessLangName"),
+        gr.Dropdown(label="seamless - Language", choices=sorted(get_lang_seamlessT_Tx_names()), elem_id="seamlessLangName"),
     }
     
     common_translation_inputs = lambda : {
@@ -1243,6 +1264,8 @@ def create_ui(app_config: ApplicationConfig):
                     with gr.Column():
                         with gr.Accordion("Translation options", open=False):
                             inputDict.update(common_translation_inputs())
+                            inputDict.update({ gr.Checkbox(label="Translation - Enbale bilingual", value=True, info="Determines whether to enable bilingual translation results", elem_id="translationEnbaleBilingual"),
+                                               gr.Checkbox(label="Translation - Detect line breaks", value=False, info="Determines whether to enable detecting line breaks in the text. If enabled, it will concatenate lines before translation", elem_id="translationDetectLineBreaks"),})
                 with gr.Column():
                     outputs = [gr.Text(label="Translation Text", autoscroll=False, show_copy_button=True, interactive=True, elem_id="outputTranslationText", elem_classes="scroll-show"),]
             if translateModelMd is not None:
