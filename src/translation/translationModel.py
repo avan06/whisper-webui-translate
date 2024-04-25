@@ -435,7 +435,7 @@ _MODELS = ["nllb-200",
            "mt5",
            "ALMA",
            "madlad400",
-           "seamless"
+           "seamless",
            "Llama"]
 
 def check_model_name(name):
