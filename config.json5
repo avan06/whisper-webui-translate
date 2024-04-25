@@ -292,6 +292,14 @@
         "url": "facebook/seamless-m4t-v2-large",
         "type": "huggingface"
       }
+    ],
+    "Llama": [
+      {
+        "name": "Meta-Llama-3-8B-Instruct-ct2-int8_float16/avan",
+        "url": "avans06/Meta-Llama-3-8B-Instruct-ct2-int8_float16",
+        "type": "huggingface",
+        "tokenizer_url": "avans06/Meta-Llama-3-8B-Instruct-ct2-int8_float16"
+      }
     ]
   },
   // Configuration options that will be used if they are not specified in the command line arguments.

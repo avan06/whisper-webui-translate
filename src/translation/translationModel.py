@@ -27,7 +27,7 @@ class TranslationModel:
         localFilesOnly: bool = False,
         loadModel: bool = False,
     ):
-        """Initializes the M2M100 / Nllb-200 / mt5 / ALMA / madlad400 / seamless-m4t translation model.
+        """Initializes the M2M100 / Nllb-200 / mt5 / ALMA / madlad400 / seamless-m4t / Llama translation model.
 
         Args:
           modelConfig: Config of the model to use (distilled-600M, distilled-1.3B, 
@@ -230,6 +230,9 @@ class TranslationModel:
                 if "ALMA" in self.modelPath:
                     self.ALMAPrefix = "Translate this from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ":\n" + self.whisperLang.whisper.names[0] + ": "
                     self.transModel = ctranslate2.Generator(**kwargsModel)
+                elif "Llama" in self.modelPath:
+                    self.roleSystem = {"role": "system", "content":"You are an excellent and professional translation master who understands languages from all around the world. Please directly translate the following sentence from " + self.whisperLang.whisper.names[0] + " to " + self.translationLang.whisper.names[0] + ", please simply provide the translation below without further explanation and without using any emojis."}
+                    self.transModel = ctranslate2.Generator(**kwargsModel)
                 else:
                     if "nllb" in self.modelPath:
                         kwargsTokenizer.update({"src_lang": self.whisperLang.nllb.code})
@@ -243,6 +246,8 @@ class TranslationModel:
                 self.transTokenizer = transformers.AutoTokenizer.from_pretrained(**kwargsTokenizer)
                 if "m2m100" in self.modelPath:
                     self.targetPrefix = [self.transTokenizer.lang_code_to_token[self.translationLang.m2m100.code]]
+                elif "Llama" in self.modelPath:
+                    self.terminators = [self.transTokenizer.eos_token_id, self.transTokenizer.convert_tokens_to_ids("<|eot_id|>")]
             elif "mt5" in self.modelPath:
                 self.mt5Prefix = self.whisperLang.whisper.code + "2" + self.translationLang.whisper.code + ": "
                 kwargsTokenizer.update({"pretrained_model_name_or_path": self.modelPath, "legacy": False})
@@ -382,6 +387,12 @@ class TranslationModel:
                     output = self.transModel.generate_batch([source], max_length=max_length, max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams, sampling_temperature=0.7, sampling_topp=0.9, repetition_penalty=1.1, include_prompt_in_result=False) #, sampling_topk=40
                     target = output[0]
                     result = self.transTokenizer.decode(target.sequences_ids[0])
+                elif "Llama" in self.modelPath:
+                    input_ids = self.transTokenizer.apply_chat_template([self.roleSystem, {"role": "user", "content": "'" + text + "', \n" + self.translationLang.whisper.names[0] + ":"}], tokenize=False, add_generation_prompt=True)
+                    source = self.transTokenizer.convert_ids_to_tokens(self.transTokenizer.encode(input_ids))
+                    output = self.transModel.generate_batch([source], max_length=max_length, max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams, sampling_temperature=0.7, sampling_topp=0.9, include_prompt_in_result=False, end_token=self.terminators)
+                    target = output[0]
+                    result = self.transTokenizer.decode(target.sequences_ids[0])
                 elif "madlad400" in self.modelPath:
                     source = self.transTokenizer.convert_ids_to_tokens(self.transTokenizer.encode(self.madlad400Prefix + text))
                     output = self.transModel.translate_batch([source], max_batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, beam_size=self.numBeams)
@@ -424,7 +435,8 @@ _MODELS = ["nllb-200",
            "mt5",
            "ALMA",
            "madlad400",
-           "seamless"]
+           "seamless"
+           "Llama"]
 
 def check_model_name(name):
     return any(allowed_name in name for allowed_name in _MODELS)

@@ -921,6 +921,8 @@ class WhisperTranscriber:
         madlad400LangName:  str = dataDict.pop("madlad400LangName")
         seamlessModelName:  str = dataDict.pop("seamlessModelName")
         seamlessLangName:   str = dataDict.pop("seamlessLangName")
+        LlamaModelName:     str = dataDict.pop("LlamaModelName")
+        LlamaLangName:      str = dataDict.pop("LlamaLangName")
         
         translationBatchSize:         int  = dataDict.pop("translationBatchSize")
         translationNoRepeatNgramSize: int  = dataDict.pop("translationNoRepeatNgramSize")
@@ -954,6 +956,10 @@ class WhisperTranscriber:
             selectedModelName = seamlessModelName if seamlessModelName is not None and len(seamlessModelName) > 0 else "seamless-m4t-v2-large/facebook"
             selectedModel = next((modelConfig for modelConfig in self.app_config.models["seamless"] if modelConfig.name == selectedModelName), None)
             translationLang = get_lang_from_seamlessT_Tx_name(seamlessLangName)
+        elif translateInput == "Llama" and LlamaLangName is not None and len(LlamaLangName) > 0:
+            selectedModelName = LlamaModelName if LlamaModelName is not None and len(LlamaModelName) > 0 else "Meta-Llama-3-8B-Instruct-ct2-int8_float16/avan"
+            selectedModel = next((modelConfig for modelConfig in self.app_config.models["Llama"] if modelConfig.name == selectedModelName), None)
+            translationLang = get_lang_from_m2m100_name(LlamaLangName)
 
         if translationLang is not None:
             translationModel = TranslationModel(modelConfig=selectedModel, whisperLang=inputLang, translationLang=translationLang, batchSize=translationBatchSize, noRepeatNgramSize=translationNoRepeatNgramSize, numBeams=translationNumBeams, torchDtypeFloat16=translationTorchDtypeFloat16, usingBitsandbytes=translationUsingBitsandbytes)
@@ -1023,6 +1029,7 @@ def create_ui(app_config: ApplicationConfig):
     ALMA_models = app_config.get_model_names("ALMA")
     madlad400_models = app_config.get_model_names("madlad400")
     seamless_models = app_config.get_model_names("seamless")
+    Llama_models = app_config.get_model_names("Llama")
     if not torch.cuda.is_available(): # Loading only quantized or models with medium-low parameters in an environment without GPU support.
         nllb_models = list(filter(lambda nllb: any(name in nllb for name in ["-600M", "-1.3B", "-3.3B-ct2"]), nllb_models))
         m2m100_models = list(filter(lambda m2m100: "12B" not in m2m100, m2m100_models))
@@ -1057,20 +1064,24 @@ def create_ui(app_config: ApplicationConfig):
         gr.Dropdown(label="seamless - Model (for translate)", choices=seamless_models, elem_id="seamlessModelName"),
         gr.Dropdown(label="seamless - Language", choices=sorted(get_lang_seamlessT_Tx_names()), elem_id="seamlessLangName"),
     }
+    common_Llama_inputs = lambda : {
+        gr.Dropdown(label="Llama - Model (for translate)", choices=Llama_models, elem_id="LlamaModelName"),
+        gr.Dropdown(label="Llama - Language", choices=sorted(get_lang_m2m100_names()), elem_id="LlamaLangName"),
+    }
     
     common_translation_inputs = lambda : {
         gr.Number(label="Translation - Batch Size", precision=0, value=app_config.translation_batch_size, elem_id="translationBatchSize"),
-        gr.Number(label="Translation - No Repeat Ngram Size", precision=0, value=app_config.translation_no_repeat_ngram_size, elem_id="translationNoRepeatNgramSize"),
-        gr.Number(label="Translation - Num Beams", precision=0, value=app_config.translation_num_beams, elem_id="translationNumBeams"),
+        gr.Number(label="Translation - No Repeat Ngram Size", precision=0, value=app_config.translation_no_repeat_ngram_size, elem_id="translationNoRepeatNgramSize", info="Prevent repetitions of ngrams with this size (set 0 to disable)."),
+        gr.Number(label="Translation - Num Beams", precision=0, value=app_config.translation_num_beams, elem_id="translationNumBeams", info="Beam size (1 for greedy search)."),
         gr.Checkbox(label="Translation - Torch Dtype float16", visible=torch.cuda.is_available(), value=app_config.translation_torch_dtype_float16, info="Load the float32 translation model with float16 when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)", elem_id="translationTorchDtypeFloat16"),
         gr.Radio(label="Translation - Using Bitsandbytes", visible=torch.cuda.is_available(), choices=[None, "int8", "int4"], value=app_config.translation_using_bitsandbytes, info="Load the float32 translation model into mixed-8bit or 4bit precision quantized model when the system supports GPU (reducing VRAM usage, not applicable to models that have already been quantized, such as Ctranslate2, GPTQ, GGUF)", elem_id="translationUsingBitsandbytes"),
     }
 
     common_vad_inputs = lambda : {
         gr.Dropdown(choices=["none", "silero-vad", "silero-vad-skip-gaps", "silero-vad-expand-into-gaps", "periodic-vad"], value=app_config.default_vad, label="VAD", elem_id="vad"),
-        gr.Number(label="VAD - Merge Window (s)", precision=0, value=app_config.vad_merge_window, elem_id="vadMergeWindow"),
-        gr.Number(label="VAD - Max Merge Size (s)", precision=0, value=app_config.vad_max_merge_size, elem_id="vadMaxMergeSize"),
-        gr.Number(label="VAD - Process Timeout (s)", precision=0, value=app_config.vad_process_timeout, elem_id="vadPocessTimeout"),
+        gr.Number(label="VAD - Merge Window (s)", precision=0, value=app_config.vad_merge_window, elem_id="vadMergeWindow", info="If set, any adjacent speech sections that are at most this number of seconds apart will be automatically merged."),
+        gr.Number(label="VAD - Max Merge Size (s)", precision=0, value=app_config.vad_max_merge_size, elem_id="vadMaxMergeSize", info="Disables merging of adjacent speech sections if they are this number of seconds long."),
+        gr.Number(label="VAD - Process Timeout (s)", precision=0, value=app_config.vad_process_timeout, elem_id="vadPocessTimeout", info="This configures the number of seconds until a process is killed due to inactivity, freeing RAM and video memory. The default value is 30 minutes."),
     }
     
     common_word_timestamps_inputs = lambda : {
@@ -1148,12 +1159,16 @@ def create_ui(app_config: ApplicationConfig):
                         with gr.Tab(label="seamless") as seamlessTab:
                             with gr.Row():
                                 inputDict.update(common_seamless_inputs())
+                        with gr.Tab(label="Llama") as llamaTab:
+                            with gr.Row():
+                                inputDict.update(common_Llama_inputs())
                         m2m100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [translateInput] )
                         nllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [translateInput] )
                         mt5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [translateInput] )
                         almaTab.select(fn=lambda: "ALMA", inputs = [], outputs= [translateInput] )
                         madlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [translateInput] )
                         seamlessTab.select(fn=lambda: "seamless", inputs = [], outputs= [translateInput] )
+                        llamaTab.select(fn=lambda: "Llama", inputs = [], outputs= [translateInput] )
                     with gr.Column():
                         with gr.Tab(label="URL") as UrlTab:
                             inputDict.update({gr.Text(label="URL (YouTube, etc.)", elem_id = "urlData")})
@@ -1164,14 +1179,14 @@ def create_ui(app_config: ApplicationConfig):
                         UrlTab.select(fn=lambda: "urlData", inputs = [], outputs= [sourceInput] )
                         UploadTab.select(fn=lambda: "multipleFiles", inputs = [], outputs= [sourceInput] )
                         MicTab.select(fn=lambda: "microphoneData", inputs = [], outputs= [sourceInput] )
-                        inputDict.update({gr.Dropdown(choices=["transcribe", "translate"], label="Task", value=app_config.task, elem_id = "task")})
+                        inputDict.update({gr.Dropdown(choices=["transcribe", "translate"], label="Task", value=app_config.task, elem_id = "task", info="Select the task - either \"transcribe\" to transcribe the audio to text, or \"translate\" to translate it to English.")})
                         with gr.Accordion("VAD options", open=False):
                             inputDict.update(common_vad_inputs())
                             if isFull:
                                 inputDict.update({
-                                    gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding, elem_id = "vadPadding"),
-                                    gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window, elem_id = "vadPromptWindow"),
-                                    gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode", value=app_config.vad_initial_prompt_mode, elem_id = "vadInitialPromptMode")})
+                                    gr.Number(label="VAD - Padding (s)", precision=None, value=app_config.vad_padding, elem_id = "vadPadding", info="The number of seconds (floating point) to add to the beginning and end of each speech section. Setting this to a number larger than zero ensures that Whisper is more likely to correctly transcribe a sentence in the beginning of a speech section. However, this also increases the probability of Whisper assigning the wrong timestamp to each transcribed line. The default value is 1 second."),
+                                    gr.Number(label="VAD - Prompt Window (s)", precision=None, value=app_config.vad_prompt_window, elem_id = "vadPromptWindow", info="The text of a detected line will be included as a prompt to the next speech section, if the speech section starts at most this number of seconds after the line has finished. For instance, if a line ends at 10:00, and the next speech section starts at 10:04, the line's text will be included if the prompt window is 4 seconds or more (10:04 - 10:00 = 4 seconds)."),
+                                    gr.Dropdown(choices=VAD_INITIAL_PROMPT_MODE_VALUES, label="VAD - Initial Prompt Mode", value=app_config.vad_initial_prompt_mode, elem_id = "vadInitialPromptMode", info="prepend_all_segments: prepend the initial prompt to each VAD segment, prepend_first_segment: just the first segment")})
                         with gr.Accordion("Word Timestamps options", open=False):
                             inputDict.update(common_word_timestamps_inputs())
                             if isFull:
@@ -1250,12 +1265,16 @@ def create_ui(app_config: ApplicationConfig):
                         with gr.Tab(label="seamless") as seamlessTab:
                             with gr.Row():
                                 inputDict.update(common_seamless_inputs())
+                        with gr.Tab(label="Llama") as llamaTab:
+                            with gr.Row():
+                                inputDict.update(common_Llama_inputs())
                         m2m100Tab.select(fn=lambda: "m2m100", inputs = [], outputs= [translateInput] )
                         nllbTab.select(fn=lambda: "nllb", inputs = [], outputs= [translateInput] )
                         mt5Tab.select(fn=lambda: "mt5", inputs = [], outputs= [translateInput] )
                         almaTab.select(fn=lambda: "ALMA", inputs = [], outputs= [translateInput] )
                         madlad400Tab.select(fn=lambda: "madlad400", inputs = [], outputs= [translateInput] )
                         seamlessTab.select(fn=lambda: "seamless", inputs = [], outputs= [translateInput] )
+                        llamaTab.select(fn=lambda: "Llama", inputs = [], outputs= [translateInput] )
                     with gr.Column():
                         inputDict.update({
                             gr.Dropdown(label="Input - Language", choices=sorted(get_lang_whisper_names()), value=app_config.language, elem_id="inputLangName"),
