@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+﻿from abc import ABC, abstractmethod
 from collections import Counter, deque
 import os
 import time
@@ -421,7 +421,8 @@ class AbstractTranscription(ABC):
                 sub_text = ""
                 sub_words = []
                 word_length = 0
-                
+                is_wide = False
+
                 for idx, word in enumerate(segment_words):
                     word2 = segment_words[idx + 1] if idx + 1 < len(segment_words) else None
                     # Adjust start and end
@@ -430,12 +431,18 @@ class AbstractTranscription(ABC):
                     
                     if "start" not in sub_segment:
                         sub_segment["start"] = float(word["start"])
+                    if not is_wide and len(word["word"]) > 1:
+                        is_wide = True
 
                     sub_text += word["word"]
                     sub_words.append(word)
                     word_length += len_wide(word["word"])
                     if (sub_text.rstrip().endswith(".") or 
                         (word_length > 90 and (sub_text.rstrip().endswith(",") or sub_text.rstrip().endswith("?"))) or
+                        (word_length > 80 and is_wide and (
+                            sub_text.rstrip().endswith("，") or sub_text.rstrip().endswith("？") or 
+                            sub_text.rstrip().endswith("、") or sub_text.rstrip().endswith("。"))) or
+                        (word_length > 90 and is_wide and sub_text.endswith(" ")) or
                         (word_length > 120 and word2 and (word2["word"].lstrip().startswith(",") or ((word2["word"].strip() in ["and", "or", "but"])))) or
                         (word_length > 180 and sub_text.endswith(" "))):
                         sub_segment["text"] = sub_text
@@ -446,6 +453,7 @@ class AbstractTranscription(ABC):
                         sub_text = ""
                         sub_words = []
                         word_length = 0
+                        is_wide = False
                 if "start" in sub_segment:
                     sub_segment["text"] = sub_text
                     sub_segment["end"] = float(word["end"])
