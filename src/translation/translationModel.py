@@ -423,6 +423,16 @@ class TranslationModel:
             else: #M2M100 & NLLB
                 output = self.transTranslator(text, max_length=max_length, batch_size=self.batchSize, no_repeat_ngram_size=self.noRepeatNgramSize, num_beams=self.numBeams)
                 result = output[0]['translation_text']
+
+            if len(result) > 2:
+                if result[len(result) - 1] == "\"" and result[0] == "\"":
+                    result = result[1:-1]
+                elif result[len(result) - 1] == "'" and result[0] == "'":
+                    result = result[1:-1]
+                elif result[len(result) - 1] == "「" and result[0] == "」":
+                    result = result[1:-1]
+                elif result[len(result) - 1] == "『" and result[0] == "』":
+                    result = result[1:-1]
         except Exception as e:
             print(traceback.format_exc())
             print("Error translation text: " + str(e))

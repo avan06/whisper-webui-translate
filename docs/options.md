@@ -17,6 +17,7 @@ Select the model that Whisper will use to transcribe the audio:
 | large     | 1550 M     | N/A                | large              | ~10 GB        | 1x             |
 | large-v2  | 1550 M     | N/A                | large              | ~10 GB        | 1x             |
 | large-v3  | 1550 M     | N/A                | large              | ~10 GB        | 1x             |
+| turbo     | 809 M      | N/A                | turbo              | ~6 GB         | 8x             |
 
 ## Language
 

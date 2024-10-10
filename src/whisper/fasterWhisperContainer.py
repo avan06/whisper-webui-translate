@@ -42,11 +42,13 @@ class FasterWhisperContainer(AbstractWhisperContainer):
         model_url = model_config.url
 
         if model_config.type == "whisper":
-            if model_url not in ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"]:
+            if model_url not in ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3", "large-v3-turbo"]:
                 raise Exception("FasterWhisperContainer does not yet support Whisper models. Use ct2-transformers-converter to convert the model to a faster-whisper model.")
             if model_url == "large":
                 # large is an alias for large-v1
                 model_url = "large-v1"
+            elif model_url == "large-v3-turbo":
+                model_url = "deepdml/faster-whisper-large-v3-turbo-ct2"
 
         device = self.device
 

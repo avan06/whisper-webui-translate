@@ -34,6 +34,10 @@
       {
         "name": "large-v3",
         "url": "large-v3"
+      },
+      {
+        "name": "large-v3-turbo",
+        "url": "large-v3-turbo"
       }
       // Uncomment to add custom Japanese models
       //{
