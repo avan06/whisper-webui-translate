@@ -1085,12 +1085,12 @@ def create_ui(app_config: ApplicationConfig):
     }
     
     common_word_timestamps_inputs = lambda : {
-        gr.Checkbox(label="Word Timestamps", value=app_config.word_timestamps, elem_id="word_timestamps"),
-        gr.Checkbox(label="Word Timestamps - Highlight Words", value=app_config.highlight_words, elem_id="highlight_words"),
+        gr.Checkbox(label="Word Timestamps", value=app_config.word_timestamps, elem_id="word_timestamps", info="Extract word-level timestamps using the cross-attention pattern and dynamic time warping, and include the timestamps for each word in each segment."),
+        gr.Checkbox(label="Word Timestamps - Highlight Words", value=app_config.highlight_words, elem_id="highlight_words", info="if word_timestamps is True, underline each word as it is spoken in srt and vtt"),
     }
     
     common_segments_filter_inputs = lambda : {
-        gr.Checkbox(label="Whisper Segments Filter", value=app_config.whisper_segments_filter, elem_id="whisperSegmentsFilter") if idx == 0 else
+        gr.Checkbox(label="Whisper Segments Filter", value=app_config.whisper_segments_filter, elem_id="whisperSegmentsFilter", info="Filter the results of Whisper transcribe with the following conditions. It is recommended to enable this feature when using the large-v3 model to avoid hallucinations.") if idx == 0 else
         gr.Text(label=f"Filter {idx}", value=filterStr, elem_id=f"whisperSegmentsFilter{idx}") for idx, filterStr in enumerate([""] + app_config.whisper_segments_filters)
     }
 
@@ -1101,10 +1101,10 @@ def create_ui(app_config: ApplicationConfig):
         app_config.diarization = False
 
     common_diarization_inputs = lambda : {
-        gr.Checkbox(label="Diarization", value=app_config.diarization, interactive=has_diarization_libs, elem_id="diarization"),
-        gr.Number(label="Diarization - Speakers", precision=0, value=app_config.diarization_speakers, interactive=has_diarization_libs, elem_id="diarization_speakers"),
-        gr.Number(label="Diarization - Min Speakers", precision=0, value=app_config.diarization_min_speakers, interactive=has_diarization_libs, elem_id="diarization_min_speakers"),
-        gr.Number(label="Diarization - Max Speakers", precision=0, value=app_config.diarization_max_speakers, interactive=has_diarization_libs, elem_id="diarization_max_speakers")
+        gr.Checkbox(label="Diarization", value=app_config.diarization, interactive=has_diarization_libs, elem_id="diarization", info="Whether to perform speaker diarization"),
+        gr.Number(label="Diarization - Speakers", precision=0, value=app_config.diarization_speakers, interactive=has_diarization_libs, elem_id="diarization_speakers", info="The number of speakers to detect"),
+        gr.Number(label="Diarization - Min Speakers", precision=0, value=app_config.diarization_min_speakers, interactive=has_diarization_libs, elem_id="diarization_min_speakers", info="The minimum number of speakers to detect"),
+        gr.Number(label="Diarization - Max Speakers", precision=0, value=app_config.diarization_max_speakers, interactive=has_diarization_libs, elem_id="diarization_max_speakers", info="The maximum number of speakers to detect")
     }
     
     common_output = lambda : [
@@ -1117,6 +1117,7 @@ def create_ui(app_config: ApplicationConfig):
     css = """
 .scroll-show textarea {
     overflow-y: auto !important;
+    scrollbar-width: auto !important;
 }
 .scroll-show textarea::-webkit-scrollbar {
     all: initial !important;
@@ -1191,29 +1192,29 @@ def create_ui(app_config: ApplicationConfig):
                             inputDict.update(common_word_timestamps_inputs())
                             if isFull:
                                 inputDict.update({
-                                    gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations, elem_id = "prepend_punctuations"),
-                                    gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations, elem_id = "append_punctuations")})
+                                    gr.Text(label="Word Timestamps - Prepend Punctuations", value=app_config.prepend_punctuations, elem_id = "prepend_punctuations", info="if word_timestamps is True, merge these punctuation symbols with the next word"),
+                                    gr.Text(label="Word Timestamps - Append Punctuations", value=app_config.append_punctuations, elem_id = "append_punctuations", info="if word_timestamps is True, merge these punctuation symbols with the previous word")})
                         if isFull:
                             with gr.Accordion("Whisper Advanced options", open=False):
                                 inputDict.update({
-                                    gr.TextArea(label="Initial Prompt", elem_id = "initial_prompt"),
-                                    gr.Number(label="Temperature", value=app_config.temperature, elem_id = "temperature"),
-                                    gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0, elem_id = "best_of"),
-                                    gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0, elem_id = "beam_size"),
-                                    gr.Number(label="Patience - Zero temperature", value=app_config.patience, elem_id = "patience"),
-                                    gr.Number(label="Length Penalty - Any temperature", value=lambda : None if app_config.length_penalty is None else app_config.length_penalty, elem_id = "length_penalty"),
-                                    gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens, elem_id = "suppress_tokens"),
-                                    gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text, elem_id = "condition_on_previous_text"),
-                                    gr.Checkbox(label="FP16", value=app_config.fp16, elem_id = "fp16"),
-                                    gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback, elem_id = "temperature_increment_on_fallback"),
-                                    gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold, elem_id = "compression_ratio_threshold"),
-                                    gr.Number(label="Logprob threshold", value=app_config.logprob_threshold, elem_id = "logprob_threshold"),
-                                    gr.Number(label="No speech threshold", value=app_config.no_speech_threshold, elem_id = "no_speech_threshold"),
+                                    gr.TextArea(label="Initial Prompt", elem_id = "initial_prompt", info="Optional text to provide as a prompt for the first window"),
+                                    gr.Number(label="Temperature", value=app_config.temperature, elem_id = "temperature", info="Temperature to use for sampling"),
+                                    gr.Number(label="Best Of - Non-zero temperature", value=app_config.best_of, precision=0, elem_id = "best_of", info="Number of candidates when sampling with non-zero temperature"),
+                                    gr.Number(label="Beam Size - Zero temperature", value=app_config.beam_size, precision=0, elem_id = "beam_size", info="Number of beams in beam search, only applicable when temperature is zero"),
+                                    gr.Number(label="Patience - Zero temperature", value=app_config.patience, elem_id = "patience", info="Optional patience value to use in beam decoding, as in https://arxiv.org/abs/2204.05424, the default (1.0) is equivalent to conventional beam search"),
+                                    gr.Number(label="Length Penalty - Any temperature", value=lambda : None if app_config.length_penalty is None else app_config.length_penalty, elem_id = "length_penalty", info="Optional token length penalty coefficient (alpha) as in https://arxiv.org/abs/1609.08144, uses simple length normalization by default"),
+                                    gr.Text(label="Suppress Tokens - Comma-separated list of token IDs", value=app_config.suppress_tokens, elem_id = "suppress_tokens", info="Comma-separated list of token ids to suppress during sampling; '-1' will suppress most special characters except common punctuations"),
+                                    gr.Checkbox(label="Condition on previous text", value=app_config.condition_on_previous_text, elem_id = "condition_on_previous_text", info="If True, provide the previous output of the model as a prompt for the next window; disabling may make the text inconsistent across windows, but the model becomes less prone to getting stuck in a failure loop"),
+                                    gr.Checkbox(label="FP16", value=app_config.fp16, elem_id = "fp16", info="Whether to perform inference in fp16; True by default; It will be ignored in faster-whisper because it is already a quantized model."),
+                                    gr.Number(label="Temperature increment on fallback", value=app_config.temperature_increment_on_fallback, elem_id = "temperature_increment_on_fallback", info="Temperature to increase when falling back when the decoding fails to meet either of the thresholds below"),
+                                    gr.Number(label="Compression ratio threshold", value=app_config.compression_ratio_threshold, elem_id = "compression_ratio_threshold", info="If the gzip compression ratio is higher than this value, treat the decoding as failed"),
+                                    gr.Number(label="Logprob threshold", value=app_config.logprob_threshold, elem_id = "logprob_threshold", info="If the average log probability is lower than this value, treat the decoding as failed"),
+                                    gr.Number(label="No speech threshold", value=app_config.no_speech_threshold, elem_id = "no_speech_threshold", info="If the probability of the <no-speech> token is higher than this value AND the decoding has failed due to `logprob_threshold`, consider the segment as silence"),
                                     })
                                 if app_config.whisper_implementation == "faster-whisper":
                                     inputDict.update({
-                                        gr.Number(label="Repetition Penalty", value=app_config.repetition_penalty, elem_id = "repetition_penalty"),
-                                        gr.Number(label="No Repeat Ngram Size", value=app_config.no_repeat_ngram_size, precision=0, elem_id = "no_repeat_ngram_size")
+                                        gr.Number(label="Repetition Penalty", value=app_config.repetition_penalty, elem_id = "repetition_penalty", info="[faster-whisper] The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0."),
+                                        gr.Number(label="No Repeat Ngram Size", value=app_config.no_repeat_ngram_size, precision=0, elem_id = "no_repeat_ngram_size", info="[faster-whisper] The model ensures that a sequence of words of no_repeat_ngram_size isn’t repeated in the output sequence. If specified, it must be a positive integer greater than 1.")
                                     })
                         with gr.Accordion("Whisper Segments Filter options", open=False):
                             inputDict.update(common_segments_filter_inputs())

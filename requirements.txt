@@ -1,6 +1,6 @@
 ﻿transformers
 ctranslate2>=4.2.1
-faster-whisper>=1.0.1
+faster-whisper>=1.0.2
 ffmpeg-python==0.2.0
 gradio==3.50.2
 yt-dlp
@@ -14,7 +14,6 @@ sentencepiece
 # Needed by diarization
 intervaltree
 srt
-torch
 https://github.com/pyannote/pyannote-audio/archive/refs/heads/develop.zip
 
 # Needed by ALMA-GPTQ

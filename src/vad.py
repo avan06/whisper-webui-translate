@@ -26,7 +26,7 @@ import torch
 import ffmpeg
 import numpy as np
 
-from src.utils import format_timestamp
+from src.utils import format_timestamp, len_wide
 from enum import Enum
 
 class NonSpeechStrategy(Enum):
@@ -405,21 +405,65 @@ class AbstractTranscription(ABC):
                 if (segment_start > max_source_time):
                     continue
                 segment_end = min(max_source_time, segment_end)
-
+                # {'text': 'XXX', 'start': 0.0, 'end': 99.99, 
+                #  'temperature': 0.0, 'avg_logprob': -0.09..., 'compression_ratio': 1.234..., 'no_speech_prob': 0.123..., 
+                #  'words': [{...}, {...}, {...}, {...}, {...}, {...}, {...}, {...}, {...}, ...]}
                 new_segment = segment.copy()
 
-            # Add to start and end
-            new_segment['start'] = segment_start + adjust_seconds
-            new_segment['end'] = segment_end + adjust_seconds
-
-            # Handle words
-            if ('words' in new_segment):
-                for word in new_segment['words']:
+            segment_duration = segment_end - segment_start
+            if ("text" in segment and "words" in segment and segment_duration > 10):
+                segment_words = new_segment["words"]
+                del new_segment["text"]
+                del new_segment["start"]
+                del new_segment["end"]
+                del new_segment["words"]
+                sub_segment = new_segment.copy()
+                sub_text = ""
+                sub_words = []
+                word_length = 0
+                
+                for idx, word in enumerate(segment_words):
+                    word2 = segment_words[idx + 1] if idx + 1 < len(segment_words) else None
                     # Adjust start and end
-                    word['start'] = word['start'] + adjust_seconds
-                    word['end'] = word['end'] + adjust_seconds
+                    word["start"] = word["start"] + adjust_seconds
+                    word["end"] = word["end"] + adjust_seconds
+                    
+                    if "start" not in sub_segment:
+                        sub_segment["start"] = float(word["start"])
 
-            result.append(new_segment)
+                    sub_text += word["word"]
+                    sub_words.append(word)
+                    word_length += len_wide(word["word"])
+                    if (sub_text.rstrip().endswith(".") or 
+                        (word_length > 90 and (sub_text.rstrip().endswith(",") or sub_text.rstrip().endswith("?"))) or
+                        (word_length > 120 and word2 and (word2["word"].lstrip().startswith(",") or ((word2["word"].strip() in ["and", "or", "but"])))) or
+                        (word_length > 180 and sub_text.endswith(" "))):
+                        sub_segment["text"] = sub_text
+                        sub_segment["end"] = float(word["end"])
+                        sub_segment["words"] = sub_words
+                        result.append(sub_segment)
+                        sub_segment = new_segment.copy()
+                        sub_text = ""
+                        sub_words = []
+                        word_length = 0
+                if "start" in sub_segment:
+                    sub_segment["text"] = sub_text
+                    sub_segment["end"] = float(word["end"])
+                    sub_segment["words"] = sub_words
+                    result.append(sub_segment)
+            else:
+                # Add to start and end
+                new_segment['start'] = segment_start + adjust_seconds
+                new_segment["end"] = segment_end + adjust_seconds
+
+                # Handle words
+                if ("words" in new_segment):
+                    for word in new_segment["words"]:
+                        # Adjust start and end
+                        word["start"] = word["start"] + adjust_seconds
+                        word["end"] = word["end"] + adjust_seconds
+
+                result.append(new_segment)
         return result
 
     def multiply_timestamps(self, timestamps: List[Dict[str, Any]], factor: float):

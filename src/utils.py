@@ -298,6 +298,27 @@ def process_text(text: str, maxLineWidth=None):
 
     return '\n'.join(lines)
 
+def len_wide(text: str):
+    """
+    Use east_asian_width to automatically determine the Character Width of the string, replacing the textwrap.wrap function.
+    
+    # East_Asian_Width (ea)
+
+    ea ; A         ; Ambiguous
+    ea ; F         ; Fullwidth
+    ea ; H         ; Halfwidth
+    ea ; N         ; Neutral
+    ea ; Na        ; Narrow
+    ea ; W         ; Wide
+    https://stackoverflow.com/a/31666966
+    """
+    width = 0
+    for char in text:
+        width += (1 if unicodedata.east_asian_width(char) not in {'W', 'F'} else 2)
+
+    return width
+    
+
 def slugify(value, allow_unicode=False, is_lower=False):
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py
