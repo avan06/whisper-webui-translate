@@ -425,13 +425,13 @@ class TranslationModel:
                 result = output[0]['translation_text']
 
             if len(result) > 2:
-                if result[len(result) - 1] == "\"" and result[0] == "\"":
+                if result[0] == "\"" and result[len(result) - 1] == "\"":
                     result = result[1:-1]
-                elif result[len(result) - 1] == "'" and result[0] == "'":
+                elif result[0] == "'" and result[len(result) - 1] == "'":
                     result = result[1:-1]
-                elif result[len(result) - 1] == "「" and result[0] == "」":
+                elif result[0] == "「" and result[len(result) - 1] == "」":
                     result = result[1:-1]
-                elif result[len(result) - 1] == "『" and result[0] == "』":
+                elif result[0] == "『" and result[len(result) - 1] == "』":
                     result = result[1:-1]
         except Exception as e:
             print(traceback.format_exc())
