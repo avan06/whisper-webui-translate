@@ -309,6 +309,12 @@
         "url": "avans06/Meta-Llama-3-8B-Instruct-ct2-int8_float16",
         "type": "huggingface",
         "tokenizer_url": "avans06/Meta-Llama-3-8B-Instruct-ct2-int8_float16"
+      },
+      {
+        "name": "Meta-Llama-3.2-3B-Instruct-ct2-int8/jncraton",
+        "url": "jncraton/Llama-3.2-3B-Instruct-ct2-int8",
+        "type": "huggingface",
+        "tokenizer_url": "jncraton/Llama-3.2-3B-Instruct-ct2-int8"
       }
     ]
   },

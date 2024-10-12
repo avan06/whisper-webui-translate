@@ -1,12 +1,13 @@
-﻿transformers
-ctranslate2>=4.2.1
+﻿transformers>=4.45.2
+ctranslate2>=4.4.0
 git+https://github.com/openai/whisper.git
 ffmpeg-python==0.2.0
-gradio==3.50.2
+gradio==5.0.2
 yt-dlp
+json5
+torch
 torchaudio
 altair
-json5
 zhconv
 sentencepiece
 
