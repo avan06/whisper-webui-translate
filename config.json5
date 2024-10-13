@@ -299,6 +299,12 @@
     ],
     "Llama": [
       {
+        "name": "Meta-Llama-3.2-8B-Instruct-ct2-int8_float16/avan",
+        "url": "avans06/Meta-Llama-3.2-8B-Instruct-ct2-int8_float16",
+        "type": "huggingface",
+        "tokenizer_url": "avans06/Meta-Llama-3.2-8B-Instruct-ct2-int8_float16"
+      },
+      {
         "name": "Meta-Llama-3.1-8B-Instruct-ct2-int8_float16/avan",
         "url": "avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16",
         "type": "huggingface",

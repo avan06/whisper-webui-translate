@@ -1036,36 +1036,36 @@ def create_ui(app_config: ApplicationConfig):
         madlad400_models = list(filter(lambda madlad400: "ct2" in madlad400, madlad400_models))
 
     common_whisper_inputs = lambda : {
-        gr.Dropdown(label="Whisper - Model (for audio)", choices=whisper_models, value=app_config.default_model_name if app_config.default_model_name != None else [], elem_id="whisperModelName"),
-        gr.Dropdown(label="Whisper - Language", choices=sorted(get_lang_whisper_names()), value=app_config.language if app_config.language != None else [], elem_id="whisperLangName"),
+        gr.Dropdown(label="Whisper - Model (for audio)", choices=whisper_models, value=app_config.default_model_name if app_config.default_model_name != None else (lambda : None), elem_id="whisperModelName"),
+        gr.Dropdown(label="Whisper - Language", choices=sorted(get_lang_whisper_names()), value=app_config.language if app_config.language != None else (lambda : None), elem_id="whisperLangName"),
     }
     common_m2m100_inputs = lambda : {
-        gr.Dropdown(label="M2M100 - Model (for translate)", choices=m2m100_models, value=[], elem_id="m2m100ModelName"),
-        gr.Dropdown(label="M2M100 - Language", choices=sorted(get_lang_m2m100_names()), value=[], elem_id="m2m100LangName"),
+        gr.Dropdown(label="M2M100 - Model (for translate)", choices=m2m100_models, value=lambda : None, elem_id="m2m100ModelName"),
+        gr.Dropdown(label="M2M100 - Language", choices=sorted(get_lang_m2m100_names()), value=lambda : None, elem_id="m2m100LangName"),
     }
     common_nllb_inputs = lambda : {
-        gr.Dropdown(label="NLLB - Model (for translate)", choices=nllb_models, value=[], elem_id="nllbModelName"),
-        gr.Dropdown(label="NLLB - Language", choices=sorted(get_lang_nllb_names()), value=[], elem_id="nllbLangName"),
+        gr.Dropdown(label="NLLB - Model (for translate)", choices=nllb_models, value=lambda : None, elem_id="nllbModelName"),
+        gr.Dropdown(label="NLLB - Language", choices=sorted(get_lang_nllb_names()), value=lambda : None, elem_id="nllbLangName"),
     }
     common_mt5_inputs = lambda : {
-        gr.Dropdown(label="MT5 - Model (for translate)", choices=mt5_models, value=[], elem_id="mt5ModelName"),
-        gr.Dropdown(label="MT5 - Language", choices=sorted(get_lang_m2m100_names(["en", "ja", "zh"])), value=[], elem_id="mt5LangName"),
+        gr.Dropdown(label="MT5 - Model (for translate)", choices=mt5_models, value=lambda : None, elem_id="mt5ModelName"),
+        gr.Dropdown(label="MT5 - Language", choices=sorted(get_lang_m2m100_names(["en", "ja", "zh"])), value=lambda : None, elem_id="mt5LangName"),
     }
     common_ALMA_inputs = lambda : {
-        gr.Dropdown(label="ALMA - Model (for translate)", choices=ALMA_models, value=[], elem_id="ALMAModelName"),
-        gr.Dropdown(label="ALMA - Language", choices=sort_lang_by_whisper_codes(["en", "de", "cs", "is", "ru", "zh", "ja"]), value=[], elem_id="ALMALangName"),
+        gr.Dropdown(label="ALMA - Model (for translate)", choices=ALMA_models, value=lambda : None, elem_id="ALMAModelName"),
+        gr.Dropdown(label="ALMA - Language", choices=sort_lang_by_whisper_codes(["en", "de", "cs", "is", "ru", "zh", "ja"]), value=lambda : None, elem_id="ALMALangName"),
     }
     common_madlad400_inputs = lambda : {
-        gr.Dropdown(label="madlad400 - Model (for translate)", choices=madlad400_models, value=[], elem_id="madlad400ModelName"),
-        gr.Dropdown(label="madlad400 - Language", choices=sorted(get_lang_m2m100_names()), value=[], elem_id="madlad400LangName"),
+        gr.Dropdown(label="madlad400 - Model (for translate)", choices=madlad400_models, value=lambda : None, elem_id="madlad400ModelName"),
+        gr.Dropdown(label="madlad400 - Language", choices=sorted(get_lang_m2m100_names()), value=lambda : None, elem_id="madlad400LangName"),
     }
     common_seamless_inputs = lambda : {
-        gr.Dropdown(label="seamless - Model (for translate)", choices=seamless_models, value=[], elem_id="seamlessModelName"),
-        gr.Dropdown(label="seamless - Language", choices=sorted(get_lang_seamlessT_Tx_names()), value=[], elem_id="seamlessLangName"),
+        gr.Dropdown(label="seamless - Model (for translate)", choices=seamless_models, value=lambda : None, elem_id="seamlessModelName"),
+        gr.Dropdown(label="seamless - Language", choices=sorted(get_lang_seamlessT_Tx_names()), value=lambda : None, elem_id="seamlessLangName"),
     }
     common_Llama_inputs = lambda : {
-        gr.Dropdown(label="Llama - Model (for translate)", choices=Llama_models, value=[], elem_id="LlamaModelName"),
-        gr.Dropdown(label="Llama - Language", choices=sorted(get_lang_m2m100_names()), value=[], elem_id="LlamaLangName"),
+        gr.Dropdown(label="Llama - Model (for translate)", choices=Llama_models, value=lambda : None, elem_id="LlamaModelName"),
+        gr.Dropdown(label="Llama - Language", choices=sorted(get_lang_m2m100_names()), value=lambda : None, elem_id="LlamaLangName"),
     }
     
     common_translation_inputs = lambda : {
@@ -1280,7 +1280,7 @@ def create_ui(app_config: ApplicationConfig):
                         llamaTab.select(fn=lambda: "Llama", inputs = [], outputs= [translateInput] )
                     with gr.Column():
                         inputDict.update({
-                            gr.Dropdown(label="Input - Language", choices=sorted(get_lang_whisper_names()), value=app_config.language if app_config.language != None else [], elem_id="inputLangName"),
+                            gr.Dropdown(label="Input - Language", choices=sorted(get_lang_whisper_names()), value=app_config.language if app_config.language != None else (lambda : None), elem_id="inputLangName"),
                             gr.Text(lines=5, label="Input - Text", elem_id="inputText", elem_classes="scroll-show"),
                         })
                     with gr.Column():
