@@ -189,7 +189,7 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
         if highlight_words:
             last = subtitle_start
 
-            for i, this_word in enumerate(words):
+            for idx, this_word in enumerate(words):
                 start = this_word['start']
                 end = this_word['end']
 
@@ -207,15 +207,10 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
                     'end'  : end,
                     'text' : __join_words(
                         [
-                            {
-                                "word": re.sub(r"^(\s*)(.*)$", r"\1<u>\2</u>", word)
-                                        if j == i
-                                        else word,
-                                # The HTML tags <u> and </u> are not displayed, 
-                                # # so they should not be counted in the word length
-                                "length": len(word)
-                            } for j, word in enumerate(text_words)
-                        ], maxLineWidth)
+                            re.sub(r"^(\s*)(.*)$", r"\1<u>\2</u>", word) if subidx == idx else word
+                            for subidx, word in enumerate(text_words)
+                        ]
+                        , maxLineWidth)
                 }
                 last = end
 
@@ -238,9 +233,9 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
                 result.update({'original': process_text(original_text, maxLineWidth)})
             yield result
 
-def __join_words(words: Iterator[Union[str, dict]], maxLineWidth: int = None):
+def __join_words(words: Iterator[str], maxLineWidth: int = None):
     result = "".join(words)
-    
+
     if maxLineWidth is None or maxLineWidth < 0:
         return result
     
@@ -273,6 +268,9 @@ def process_text(text: str, maxLineWidth=None):
         if currentLine:
             currentLine += " "
             wordWidth += 1
+        # The HTML tags <u> and </u> are not displayed, 
+        # so they should not be counted in the word length
+        wordWidth -= 7 if "<u>" in word else 0
         for wordIdx, char in enumerate(word):
             if unicodedata.east_asian_width(char) not in {'W', 'F'}:
                 wordWidth += 1
