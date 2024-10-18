@@ -5,7 +5,9 @@ The `translate` task in `Whisper` only supports translating other languages `int
 
 The larger the parameters of the Translation model, the better its translation capability is expected. However, this also requires higher computational resources and slower running speed.  
 
-Currently, when the `Highlight Words timestamps` option is enabled in the Whisper `Word Timestamps options`, it cannot be used simultaneously with the Translation Model. This is because Highlight Words splits the source text, and after translation, it becomes a non-word-level string.  
+The translation model is now compatible with the `Word Timestamps - Highlight Words` feature.  
+
+~~Currently, when the `Highlight Words timestamps` option is enabled in the Whisper `Word Timestamps options`, it cannot be used simultaneously with the Translation Model. This is because Highlight Words splits the source text, and after translation, it becomes a non-word-level string.~~  
 
 
 # Translation Model
@@ -152,6 +154,17 @@ Automatic speech recognition (ASR)
 | [facebook/hf-seamless-m4t-medium](https://huggingface.co/facebook/hf-seamless-m4t-medium) | 1.2B | 4.84 GB | float32 | N/A |
 | [facebook/seamless-m4t-large](https://huggingface.co/facebook/seamless-m4t-large) | 2.3B | 11.4 GB | float32 | N/A |
 | [facebook/seamless-m4t-v2-large](https://huggingface.co/facebook/seamless-m4t-v2-large) | 2.3B | 11.4 GB (safetensors:9.24 GB) | float32 | ≈9.2 GB |
+
+## Llama
+
+Meta developed and released the Meta Llama 3 family of large language models (LLMs). This program modifies them through prompts to function as translation models.
+
+| Name | Parameters | Size | type/quantize | Required VRAM |
+|------|------------|------|---------------|---------------|
+| [avans06/Meta-Llama-3.2-8B-Instruct-ct2-int8_float16](https://huggingface.co/avans06/Meta-Llama-3.2-8B-Instruct-ct2-int8_float16) | 8B | 8.04 GB | int8_float16 | ≈ 7.9 GB |
+| [avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16](https://huggingface.co/avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16) | 8B | 8.04 GB | int8_float16 | ≈ 7.9 GB |
+| [avans06/Meta-Llama-3-8B-Instruct-ct2-int8_float16](https://huggingface.co/avans06/Meta-Llama-3-8B-Instruct-ct2-int8_float16) | 8B | 8.04 GB | int8_float16 | ≈ 7.9 GB |
+| [jncraton/Llama-3.2-3B-Instruct-ct2-int8](https://huggingface.co/jncraton/Llama-3.2-3B-Instruct-ct2-int8) | 3B | 3.22 GB | int8 | ≈ 3.3 GB |
 
 
 # Options

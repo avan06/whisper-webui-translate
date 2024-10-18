@@ -155,7 +155,7 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
         subtitle_start = segment['start']
         subtitle_end   = segment['end']
         text           = segment['text'].strip()
-        original_text  = segment['original'].strip() if 'original' in segment else None
+        text_original  = segment['original'].strip() if 'original' in segment else None
         
         if len(words) == 0:
             # Prepend the longest speaker ID if available
@@ -167,8 +167,8 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
                 'end'  : subtitle_end,
                 'text' : process_text(text, maxLineWidth)
             }
-            if original_text is not None and len(original_text) > 0:
-                result.update({'original': process_text(original_text, maxLineWidth)})
+            if text_original is not None and len(text_original) > 0:
+                result.update({'original': process_text(text_original, maxLineWidth)})
             yield result
             
             # We are done
@@ -181,12 +181,14 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
                 'end'  : subtitle_start,
                 'word' : f"({segment_longest_speaker})"
             })
+            
+        text_words = [text] if not highlight_words and text_original is not None and len(text_original) > 0 else [ this_word["word"] for this_word in words ]
 
-        text_words = [text] if not highlight_words and original_text is not None and len(original_text) > 0 else [ this_word["word"] for this_word in words ]
         subtitle_text = __join_words(text_words, maxLineWidth)
 
         # Iterate over the words in the segment
         if highlight_words:
+            text_words_original = [ this_word["word_original"] for this_word in words if "word_original" in this_word ] if text_original is not None and len(text_original) > 0 else None
             last = subtitle_start
 
             for idx, this_word in enumerate(words):
@@ -195,14 +197,17 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
 
                 if last != start:
                     # Display the text up to this point
-                    yield {
+                    result = {
                         'start': last,
                         'end'  : start,
                         'text' : subtitle_text
                     }
+                    if text_original is not None and len(text_original) > 0:
+                        result.update({'original': process_text(text_original, maxLineWidth)})
+                    yield result
                 
                 # Display the text with the current word highlighted
-                yield {
+                result = {
                     'start': start,
                     'end'  : end,
                     'text' : __join_words(
@@ -212,15 +217,26 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
                         ]
                         , maxLineWidth)
                 }
+                if text_words_original is not None and len(text_words_original) > 0:
+                    result.update({'original': __join_words(
+                        [
+                            re.sub(r"^(\s*)(.*)$", r"\1<u>\2</u>", word_original) if subidx == idx else word_original
+                            for subidx, word_original in enumerate(text_words_original)
+                        ]
+                        , maxLineWidth)})
+                yield result
                 last = end
 
             if last != subtitle_end:
                 # Display the last part of the text
-                yield {
+                result = {
                     'start': last,
                     'end'  : subtitle_end,
                     'text' : subtitle_text
                 }
+                if text_original is not None and len(text_original) > 0:
+                    result.update({'original': process_text(text_original, maxLineWidth)})
+                yield result
 
         # Just return the subtitle text
         else:
@@ -229,8 +245,8 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
                 'end'  : subtitle_end,
                 'text' : subtitle_text
             }
-            if original_text is not None and len(original_text) > 0:
-                result.update({'original': process_text(original_text, maxLineWidth)})
+            if text_original is not None and len(text_original) > 0:
+                result.update({'original': process_text(text_original, maxLineWidth)})
             yield result
 
 def __join_words(words: Iterator[str], maxLineWidth: int = None):

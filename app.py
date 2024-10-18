@@ -716,6 +716,38 @@ class WhisperTranscriber:
                     segments_progress_listener.on_progress(idx+1, len(segments), desc=f"Process segments: {idx}/{len(segments)}")
 
                 translationModel.release_vram()
+
+                if highlight_words and segments[0]["words"] is not None:
+                    for idx, segment in enumerate(segments):
+                        text = segment["text"]
+                        words = segment["words"]
+                        total_duration = words[-1]['end'] - words[0]['start'] #Calculate the total duration of the entire sentence
+                        total_text_length = len(text)
+
+                        # Allocate lengths to each word
+                        duration_ratio_lengths = []
+                        total_allocated = 0
+                        text_idx = 0  # Track the position in the translated string
+                        for word in words:
+                            # Calculate the duration of each word as a proportion of the total time
+                            word_duration = word['end'] - word['start']
+                            duration_ratio = word_duration / total_duration
+                            duration_ratio_length = int(duration_ratio * total_text_length)
+                            duration_ratio_lengths.append(duration_ratio_length)
+                            total_allocated += duration_ratio_length
+
+                        # Distribute remaining characters to avoid 0-duration_ratio_length issues
+                        remaining_chars = total_text_length - total_allocated
+                        for idx in range(remaining_chars):
+                            duration_ratio_lengths[idx % len(words)] += 1  # Distribute the remaining chars evenly
+
+                        # Generate translated words based on the calculated lengths
+                        text_idx = 0
+                        for idx, word in enumerate(words):
+                            text_part = text[text_idx:text_idx + duration_ratio_lengths[idx]]
+                            word["word"], word["word_original"] = text_part, word["word"]
+                            text_idx += duration_ratio_lengths[idx]
+
                 perf_end_time = time.perf_counter()
                 # Call the finished callback
                 if segments_progress_listener is not None:
