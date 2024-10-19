@@ -1274,6 +1274,25 @@ def create_ui(app_config: ApplicationConfig):
             
         return transcribe
 
+    def find_free_port() -> int:
+        server_name=app_config.server_name
+        server_port=app_config.server_port
+
+        if server_name is None:
+            server_name = '127.0.0.1'
+
+        if server_port is None:
+            server_port = 7860
+
+        import socket
+        while True:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind((server_name, server_port))
+                    return server_port
+                except OSError:
+                    server_port += 1
+
     def create_translation(isQueueMode: bool):
         with gr.Blocks() as translation:
             translateInput = gr.State(value="m2m100") # [Gradio 5.x] TypeError: State.__init__() got an unexpected keyword argument 'elem_id'
@@ -1346,7 +1365,7 @@ def create_ui(app_config: ApplicationConfig):
     else:
         print("Queue mode disabled - progress bars will not be shown.")
 
-    demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=app_config.server_port)
+    demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=find_free_port())
     
     # Clean up
     ui.close()
