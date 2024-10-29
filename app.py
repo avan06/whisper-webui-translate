@@ -1365,7 +1365,8 @@ def create_ui(app_config: ApplicationConfig):
     else:
         print("Queue mode disabled - progress bars will not be shown.")
 
-    demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=find_free_port())
+    demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=find_free_port(),
+               ssr_mode=False) # [Gradio 5.x] ERROR: Exception in ASGI application
     
     # Clean up
     ui.close()
@@ -1451,6 +1452,7 @@ if __name__ == '__main__':
         if torch.cuda.is_available():
             deviceId = torch.cuda.current_device()
             totalVram = torch.cuda.get_device_properties(deviceId).total_memory
+            print(f"Total Vram: {totalVram/(1024*1024*1024):.4f}G")
             if totalVram/(1024*1024*1024) <= 4: #VRAM <= 4 GB
                 updated_config.vad_process_timeout = 0
     except Exception as e:
