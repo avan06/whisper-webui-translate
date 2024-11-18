@@ -1365,8 +1365,8 @@ def create_ui(app_config: ApplicationConfig):
     else:
         print("Queue mode disabled - progress bars will not be shown.")
 
-    demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=find_free_port(),
-               ssr_mode=False) # [Gradio 5.x] ERROR: Exception in ASGI application
+    demo.launch(inbrowser=app_config.autolaunch, share=app_config.share, server_name=app_config.server_name, server_port=find_free_port())
+               # ,ssr_mode=False) # [Gradio 5.x] ERROR: Exception in ASGI application
     
     # Clean up
     ui.close()
@@ -1438,15 +1438,15 @@ if __name__ == '__main__':
 
     updated_config = default_app_config.update(**args)
 
-    # updated_config.whisper_implementation = "faster-whisper"
-    # updated_config.input_audio_max_duration = -1
-    # updated_config.default_model_name = "large-v2"
-    # updated_config.output_dir = "output"
-    # updated_config.vad_max_merge_size = 90
-    # updated_config.merge_subtitle_with_sources = False
-    # updated_config.autolaunch = True
-    # updated_config.auto_parallel = False
-    # updated_config.save_downloaded_files = True
+    updated_config.whisper_implementation = "faster-whisper"
+    updated_config.input_audio_max_duration = -1
+    updated_config.default_model_name = "large-v2"
+    updated_config.output_dir = "output"
+    updated_config.vad_max_merge_size = 90
+    updated_config.merge_subtitle_with_sources = False
+    updated_config.autolaunch = True
+    updated_config.auto_parallel = False
+    updated_config.save_downloaded_files = True
     
     try:
         if torch.cuda.is_available():

@@ -508,13 +508,77 @@ class VadSileroTranscription(AbstractTranscription):
         """
         (get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks) = utils
         https://github.com/snakers4/silero-vad
+        def get_speech_timestamps(audio: torch.Tensor,
+                          model,
+                          threshold: float = 0.5,
+                          sampling_rate: int = 16000,
+                          min_speech_duration_ms: int = 250,
+                          max_speech_duration_s: float = float('inf'),
+                          min_silence_duration_ms: int = 100,
+                          speech_pad_ms: int = 30,
+                          return_seconds: bool = False,
+                          visualize_probs: bool = False,
+                          progress_tracking_callback: Callable[[float], None] = None,
+                          neg_threshold: float = None,
+                          window_size_samples: int = 512,):
+
+       This method is used for splitting long audios into speech chunks using silero VAD
+
+        Parameters
+        ----------
+        audio: torch.Tensor, one dimensional
+            One dimensional float torch.Tensor, other types are casted to torch if possible
+
+        model: preloaded .jit/.onnx silero VAD model
+
+        threshold: float (default - 0.5)
+            Speech threshold. Silero VAD outputs speech probabilities for each audio chunk, probabilities ABOVE this value are considered as SPEECH.
+            It is better to tune this parameter for each dataset separately, but "lazy" 0.5 is pretty good for most datasets.
+
+        sampling_rate: int (default - 16000)
+            Currently silero VAD models support 8000 and 16000 (or multiply of 16000) sample rates
+
+        min_speech_duration_ms: int (default - 250 milliseconds)
+            Final speech chunks shorter min_speech_duration_ms are thrown out
+
+        max_speech_duration_s: int (default -  inf)
+            Maximum duration of speech chunks in seconds
+            Chunks longer than max_speech_duration_s will be split at the timestamp of the last silence that lasts more than 100ms (if any), to prevent agressive cutting.
+            Otherwise, they will be split aggressively just before max_speech_duration_s.
+
+        min_silence_duration_ms: int (default - 100 milliseconds)
+            In the end of each speech chunk wait for min_silence_duration_ms before separating it
+
+        speech_pad_ms: int (default - 30 milliseconds)
+            Final speech chunks are padded by speech_pad_ms each side
+
+        return_seconds: bool (default - False)
+            whether return timestamps in seconds (default - samples)
+
+        visualize_probs: bool (default - False)
+            whether draw prob hist or not
+
+        progress_tracking_callback: Callable[[float], None] (default - None)
+            callback function taking progress in percents as an argument
+
+        neg_threshold: float (default = threshold - 0.15)
+            Negative threshold (noise or exit threshold). If model's current state is SPEECH, values BELOW this value are considered as NON-SPEECH.
+
+        window_size_samples: int (default - 512 samples)
+            !!! DEPRECATED, DOES NOTHING !!!
+
+        Returns
+        ----------
+        speeches: list of dicts
+            list containing ends and beginnings of speech chunks (samples or seconds based on return_seconds)
+        https://github.com/snakers4/silero-vad/blob/master/src/silero_vad/utils_vad.py
         """
         repo_owner = "snakers4"
-        repo_name = "silero-vad"
+        repo_name = "silero-vad:v4.0" # https://github.com/snakers4/silero-vad/issues/515
         ref = "master"
 
         try:
-            model, utils = torch.hub.load(repo_or_dir=f'{repo_owner}/{repo_name}', model='silero_vad')
+            model, utils = torch.hub.load(repo_or_dir=f'{repo_owner}/{repo_name}', model='silero_vad', trust_repo=True)
         except Exception as e:
             hub_dir = torch.hub.get_dir()
             owner_name_branch = '_'.join([repo_owner, repo_name, ref])
@@ -547,7 +611,7 @@ class VadSileroTranscription(AbstractTranscription):
             print("Processing VAD in chunk from {} to {}".format(format_timestamp(chunk_start), format_timestamp(chunk_start + chunk_duration)))
             wav = self.get_audio_segment(audio, str(chunk_start), str(chunk_duration))
 
-            sample_timestamps = self.get_speech_timestamps(wav, self.model, sampling_rate=self.sampling_rate, threshold=SPEECH_TRESHOLD)
+            sample_timestamps = self.get_speech_timestamps(wav, self.model, sampling_rate=self.sampling_rate, threshold=SPEECH_TRESHOLD) #, neg_threshold=0.15, return_seconds=True
             seconds_timestamps = self.multiply_timestamps(sample_timestamps, factor=1 / self.sampling_rate) 
             adjusted = self.adjust_timestamp(seconds_timestamps, adjust_seconds=chunk_start, max_source_time=chunk_start + chunk_duration)
 
