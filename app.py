@@ -460,7 +460,7 @@ class WhisperTranscriber:
 
             finally:
                 # Cleanup source
-                if self.deleteUploadedFiles:
+                if self.deleteUploadedFiles and sourceInput == "urlData":
                     for source in sources:
                         print("Deleting temporary source file: " + source.source_path)
                         try:
@@ -1146,6 +1146,10 @@ def create_ui(app_config: ApplicationConfig):
     ]
     
     css = """
+.options {
+    max-height: 65vh !important;
+    overflow-y: auto !important;
+}
 .scroll-show textarea {
     overflow-y: auto !important;
     scrollbar-width: auto !important;
