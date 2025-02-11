@@ -1,12 +1,18 @@
-﻿transformers>=4.45.2
+﻿--extra-index-url https://download.pytorch.org/whl/cu124
+
+transformers>=4.45.2
 ctranslate2>=4.4.0
 git+https://github.com/openai/whisper.git
 ffmpeg-python==0.2.0
-gradio==5.9.1
+gradio==5.15.0
 yt-dlp
 json5
-torch
-torchaudio
+
+torch==2.5.0+cu124; sys_platform != 'darwin'
+torchaudio==2.5.0+cu124; sys_platform != 'darwin'
+torch==2.5.0; sys_platform == 'darwin'
+torchaudio==2.5.0; sys_platform == 'darwin'
+
 altair
 zhconv
 sentencepiece

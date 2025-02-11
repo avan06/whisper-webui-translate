@@ -58,7 +58,7 @@ class ApplicationConfig:
                  vad_parallel_devices: str = "", vad_cpu_cores: int = 1, vad_process_timeout: int = 1800, 
                  auto_parallel: bool = False, output_dir: str = None,
                  model_dir: str = None, device: str = None, 
-                 verbose: bool = True, task: str = "transcribe", language: str = None,
+                 verbose: bool = False, task: str = "transcribe", language: str = None,
                  vad_initial_prompt_mode: str = "prepend_first_segment ", 
                  vad_merge_window: float = 5, vad_max_merge_size: float = 30,
                  vad_padding: float = 1, vad_prompt_window: float = 3,

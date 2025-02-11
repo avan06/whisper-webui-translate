@@ -108,6 +108,24 @@ class ParallelTranscription(AbstractTranscription):
     def transcribe_parallel(self, transcription: AbstractTranscription, audio: str, whisperCallable: AbstractWhisperCallback, config: TranscriptionConfig, 
                             cpu_device_count: int, gpu_devices: List[str], cpu_parallel_context: ParallelContext = None, gpu_parallel_context: ParallelContext = None, 
                             progress_listener: ProgressListener = None):
+
+        """
+        Perform parallel transcription of an audio file using CPU and GPU.
+        
+        Args:
+            transcription (AbstractTranscription): The transcription instance handling processing.
+            audio (str): Path to the audio file to be transcribed.
+            whisperCallable (AbstractWhisperCallback): Callback to interact with the Whisper model.
+            config (TranscriptionConfig): Configuration for transcription settings.
+            cpu_device_count (int): Number of CPU devices to use for processing.
+            gpu_devices (List[str]): List of GPU device IDs to use for processing.
+            cpu_parallel_context (ParallelContext, optional): Context for managing CPU parallel execution.
+            gpu_parallel_context (ParallelContext, optional): Context for managing GPU parallel execution.
+            progress_listener (ProgressListener, optional): Listener for tracking transcription progress.
+        
+        Returns:
+            dict: Merged transcription results containing text, segments, and detected language.
+        """
         total_duration = get_audio_duration(audio)
 
         # First, get the timestamps for the original audio
@@ -212,6 +230,20 @@ class ParallelTranscription(AbstractTranscription):
 
     def _get_merged_timestamps_parallel(self, transcription: AbstractTranscription, audio: str, config: TranscriptionConfig, total_duration: float, 
                                        cpu_device_count: int, cpu_parallel_context: ParallelContext = None):
+        """
+        Compute merged timestamps for transcription in parallel using CPU.
+        
+        Args:
+            transcription (AbstractTranscription): The transcription instance handling timestamp processing.
+            audio (str): Path to the audio file.
+            config (TranscriptionConfig): Configuration settings for timestamp processing.
+            total_duration (float): Total duration of the audio file in seconds.
+            cpu_device_count (int): Number of CPU devices to use.
+            cpu_parallel_context (ParallelContext, optional): Context for managing CPU parallel execution.
+        
+        Returns:
+            list: Merged timestamps after processing.
+        """
         parameters = []
 
         chunk_size = max(total_duration / cpu_device_count, self.MIN_CPU_CHUNK_SIZE_SECONDS)
@@ -228,8 +260,7 @@ class ParallelTranscription(AbstractTranscription):
                 # No need to process chunks that are less than 1 second
                 break
 
-            print("Parallel VAD: Executing chunk from " + str(chunk_start) + " to " + 
-                    str(chunk_end) + " on CPU device " + str(cpu_device_id))
+            print(f"Parallel VAD: Executing chunk from {chunk_start} to {chunk_end} on CPU device {cpu_device_id}")
             parameters.append([audio, config, chunk_start, chunk_end]);
 
             cpu_device_id += 1
@@ -258,7 +289,7 @@ class ParallelTranscription(AbstractTranscription):
             merged = transcription.get_merged_timestamps(timestamps, config, total_duration)
 
             perf_end_time = time.perf_counter()
-            print("Parallel VAD processing took {} seconds".format(perf_end_time - perf_start_time))
+            print(f"Parallel VAD processing took {perf_end_time - perf_start_time} seconds")
             return merged
 
         finally:
@@ -273,6 +304,17 @@ class ParallelTranscription(AbstractTranscription):
         return []
 
     def get_merged_timestamps(self,  timestamps: List[Dict[str, Any]], config: ParallelTranscriptionConfig, total_duration: float):
+        """
+        Merge timestamps from different transcription segments.
+        
+        Args:
+            timestamps (List[Dict[str, Any]]): List of timestamp dictionaries from different segments.
+            config (ParallelTranscriptionConfig): Configuration settings for merging timestamps.
+            total_duration (float): Total duration of the audio file in seconds.
+        
+        Returns:
+            list: Merged timestamps after processing.
+        """
         # Override timestamps that will be processed
         if (config.override_timestamps is not None):
             print("(get_merged_timestamps) Using override timestamps of size " + str(len(config.override_timestamps)))
@@ -281,6 +323,18 @@ class ParallelTranscription(AbstractTranscription):
 
     def transcribe(self, audio: str, whisperCallable: AbstractWhisperCallback, config: ParallelTranscriptionConfig, 
                    progressListener: ProgressListener = None):
+        """
+        Perform transcription on a given audio file using the specified device.
+        
+        Args:
+            audio (str): Path to the audio file to be transcribed.
+            whisperCallable (AbstractWhisperCallback): Callback to interact with the Whisper model.
+            config (ParallelTranscriptionConfig): Configuration settings for transcription.
+            progressListener (ProgressListener, optional): Listener for tracking transcription progress.
+        
+        Returns:
+            dict: Transcription results including text, segments, and detected language.
+        """
         # Override device ID the first time
         if (os.environ.get("INITIALIZED", None) is None):
             os.environ["INITIALIZED"] = "1"
@@ -294,7 +348,15 @@ class ParallelTranscription(AbstractTranscription):
         return super().transcribe(audio, whisperCallable, config, progressListener)
 
     def _split(self, a, n):
-        """Split a list into n approximately equal parts."""
+        """Split a list into n approximately equal parts.
+        
+        Args:
+            a (List[Any]): The list to be split.
+            n (int): The number of parts to split the list into.
+        
+        Returns:
+            generator: A generator yielding n sublists.
+        """
         k, m = divmod(len(a), n)
         return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
 

@@ -14,12 +14,12 @@ from src.modelCache import GLOBAL_MODEL_CACHE, ModelCache
 from src.segments import merge_timestamps
 from src.whisper.abstractWhisperContainer import AbstractWhisperCallback
 
-# Workaround for https://github.com/tensorflow/tensorflow/issues/48797
-try:
-    import tensorflow as tf
-except ModuleNotFoundError:
-    # Error handling
-    pass
+# # Workaround for https://github.com/tensorflow/tensorflow/issues/48797
+# try:
+#     import tensorflow as tf
+# except ModuleNotFoundError:
+#     # Error handling
+#     pass
 
 import torch
 
@@ -621,7 +621,7 @@ class VadSileroTranscription(AbstractTranscription):
             chunk_start += chunk_duration
 
         perf_end_time = time.perf_counter()
-        print("VAD processing took {} seconds".format(perf_end_time - perf_start_time))
+        print(f"VAD processing took {perf_end_time - perf_start_time} seconds, from {start_time} to {end_time}")
 
         return result
 

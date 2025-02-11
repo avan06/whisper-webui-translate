@@ -367,7 +367,7 @@
   // Device to use for PyTorch inference, or Null to use the default device
   "device": null,
   // Whether to print out the progress and debug messages
-  "verbose": true,
+  "verbose": false,
   // Whether to perform X->X speech recognition ('transcribe') or X->English translation ('translate')
   "task": "transcribe",
   // Language spoken in the audio, specify None to perform language detection

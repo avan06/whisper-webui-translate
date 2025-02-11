@@ -210,6 +210,8 @@ class WhisperTranscriber:
             The model ensures that a sequence of words of no_repeat_ngram_size isn’t repeated in the output sequence. If specified, it must be a positive integer greater than 1.
         """
         try:
+            if self.app_config.verbose:
+                decodeOptions["verbose"] = True
             whisperModelName: str = decodeOptions.pop("whisperModelName")
             whisperLangName:  str = decodeOptions.pop("whisperLangName")
 
@@ -1053,18 +1055,18 @@ def create_ui(app_config: ApplicationConfig):
 
     uiArticle = "Read the [documentation here](https://gitlab.com/aadnk/whisper-webui/-/blob/main/docs/options.md)."
 
-    whisper_models = app_config.get_model_names("whisper")
-    nllb_models = app_config.get_model_names("nllb")
-    m2m100_models = app_config.get_model_names("m2m100")
-    mt5_models = app_config.get_model_names("mt5")
-    ALMA_models = app_config.get_model_names("ALMA")
+    whisper_models   = app_config.get_model_names("whisper")
+    nllb_models      = app_config.get_model_names("nllb")
+    m2m100_models    = app_config.get_model_names("m2m100")
+    mt5_models       = app_config.get_model_names("mt5")
+    ALMA_models      = app_config.get_model_names("ALMA")
     madlad400_models = app_config.get_model_names("madlad400")
-    seamless_models = app_config.get_model_names("seamless")
-    Llama_models = app_config.get_model_names("Llama")
+    seamless_models  = app_config.get_model_names("seamless")
+    Llama_models     = app_config.get_model_names("Llama")
     if not torch.cuda.is_available(): # Loading only quantized or models with medium-low parameters in an environment without GPU support.
-        nllb_models = list(filter(lambda nllb: any(name in nllb for name in ["-600M", "-1.3B", "-3.3B-ct2"]), nllb_models))
-        m2m100_models = list(filter(lambda m2m100: "12B" not in m2m100, m2m100_models))
-        ALMA_models = list(filter(lambda alma: "GGUF" in alma or "ct2" in alma, ALMA_models))
+        nllb_models      = list(filter(lambda nllb: any(name in nllb for name in ["-600M", "-1.3B", "-3.3B-ct2"]), nllb_models))
+        m2m100_models    = list(filter(lambda m2m100: "12B" not in m2m100, m2m100_models))
+        ALMA_models      = list(filter(lambda alma: "GGUF" in alma or "ct2" in alma, ALMA_models))
         madlad400_models = list(filter(lambda madlad400: "ct2" in madlad400, madlad400_models))
 
     common_whisper_inputs = lambda : {
@@ -1356,9 +1358,9 @@ def create_ui(app_config: ApplicationConfig):
         return translation
 
     simpleTranscribe = create_transcribe(uiDescription, is_queue_mode)
-    fullDescription = uiDescription + "\n\n\n\n" + "Be careful when changing some of the options in the full interface - this can cause the model to crash."
-    fullTranscribe = create_transcribe(fullDescription, is_queue_mode, True)
-    uiTranslation = create_translation(is_queue_mode)
+    fullDescription  = uiDescription + "\n\n\n\n" + "Be careful when changing some of the options in the full interface - this can cause the model to crash."
+    fullTranscribe   = create_transcribe(fullDescription, is_queue_mode, True)
+    uiTranslation    = create_translation(is_queue_mode)
 
     demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe, uiTranslation], tab_names=["Simple", "Full", "Translation"], css=css)
 
@@ -1442,15 +1444,16 @@ if __name__ == '__main__':
 
     updated_config = default_app_config.update(**args)
 
-    updated_config.whisper_implementation = "faster-whisper"
-    updated_config.input_audio_max_duration = -1
-    updated_config.default_model_name = "large-v2"
-    updated_config.output_dir = "output"
-    updated_config.vad_max_merge_size = 90
-    updated_config.merge_subtitle_with_sources = False
-    updated_config.autolaunch = True
-    updated_config.auto_parallel = False
-    updated_config.save_downloaded_files = True
+    # updated_config.whisper_implementation = "faster-whisper"
+    # updated_config.input_audio_max_duration = -1
+    # updated_config.default_model_name = "large-v2"
+    # updated_config.output_dir = "output"
+    # updated_config.vad_max_merge_size = 90
+    # updated_config.merge_subtitle_with_sources = False
+    # updated_config.autolaunch = True
+    # updated_config.auto_parallel = False
+    # updated_config.save_downloaded_files = True
+    # updated_config.verbose = True
     
     try:
         if torch.cuda.is_available():
