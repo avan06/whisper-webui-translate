@@ -19,7 +19,6 @@ from src.diarization.diarization import Diarization
 from src.diarization.diarizationContainer import DiarizationContainer
 from src.hooks.progressListener import ProgressListener
 from src.hooks.subTaskProgressListener import SubTaskProgressListener
-from src.hooks.whisperProgressHook import create_progress_listener_handle
 from src.modelCache import ModelCache
 from src.prompts.jsonPromptStrategy import JsonPromptStrategy
 from src.prompts.prependPromptStrategy import PrependPromptStrategy
@@ -32,7 +31,7 @@ import ffmpeg
 # UI
 import gradio as gr
 
-from src.download import ExceededMaximumDuration, download_url
+from src.download import ExceededMaximumDuration
 from src.utils import optional_int, slugify, str2bool, write_srt, write_srt_original, write_vtt
 from src.vad import AbstractTranscription, NonSpeechStrategy, PeriodicTranscriptionConfig, TranscriptionConfig, VadPeriodicTranscription, VadSileroTranscription
 from src.whisper.abstractWhisperContainer import AbstractWhisperContainer
@@ -100,11 +99,15 @@ class WhisperTranscriber:
             self.vad_cpu_cores = min(os.cpu_count(), MAX_AUTO_CPU_CORES)
             print("[Auto parallel] Using GPU devices " + str(self.parallel_device_list) + " and " + str(self.vad_cpu_cores) + " CPU cores for VAD/transcription.")
 
-    def set_diarization(self, auth_token: str, enable_daemon_process: bool = True, **kwargs):
+    def set_diarization(self, auth_token: str, enable_daemon_process: bool = True, diarization_version: str = None, **kwargs):
+        if diarization_version == None:
+            diarization_version = self.app_config.diarization_version
         if self.diarization is None:
             self.diarization = DiarizationContainer(auth_token=auth_token, enable_daemon_process=enable_daemon_process, 
                                                     auto_cleanup_timeout_seconds=self.app_config.diarization_process_timeout, 
-                                                    cache=self.model_cache)
+                                                    cache=self.model_cache, diarization_version=diarization_version)
+        else:
+            self.diarization.diarization_version=diarization_version
         # Set parameters
         self.diarization_kwargs = kwargs
 
@@ -257,6 +260,7 @@ class WhisperTranscriber:
             diarization_speakers:     int  = decodeOptions.pop("diarization_speakers", 2)
             diarization_min_speakers: int  = decodeOptions.pop("diarization_min_speakers", 1)
             diarization_max_speakers: int  = decodeOptions.pop("diarization_max_speakers", 8)
+            diarization_version:      str  = decodeOptions.pop("diarization_version", "speaker-diarization-3.1")
             highlight_words:          bool = decodeOptions.pop("highlight_words", False)
             
             temperature: float = decodeOptions.pop("temperature", None)
@@ -290,9 +294,9 @@ class WhisperTranscriber:
 
             if diarization:
                 if diarization_speakers is not None and diarization_speakers < 1:
-                    self.set_diarization(auth_token=self.app_config.auth_token, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers)
+                    self.set_diarization(auth_token=self.app_config.auth_token, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers, diarization_version=diarization_version)
                 else:
-                    self.set_diarization(auth_token=self.app_config.auth_token, num_speakers=diarization_speakers, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers)
+                    self.set_diarization(auth_token=self.app_config.auth_token, num_speakers=diarization_speakers, min_speakers=diarization_min_speakers, max_speakers=diarization_max_speakers, diarization_version=diarization_version)
             else:
                 self.unset_diarization()
                 
@@ -1137,7 +1141,8 @@ def create_ui(app_config: ApplicationConfig):
         gr.Checkbox(label="Diarization", value=app_config.diarization, interactive=has_diarization_libs, elem_id="diarization", info="Whether to perform speaker diarization"),
         gr.Number(label="Diarization - Speakers", precision=0, value=app_config.diarization_speakers, interactive=has_diarization_libs, elem_id="diarization_speakers", info="The number of speakers to detect"),
         gr.Number(label="Diarization - Min Speakers", precision=0, value=app_config.diarization_min_speakers, interactive=has_diarization_libs, elem_id="diarization_min_speakers", info="The minimum number of speakers to detect"),
-        gr.Number(label="Diarization - Max Speakers", precision=0, value=app_config.diarization_max_speakers, interactive=has_diarization_libs, elem_id="diarization_max_speakers", info="The maximum number of speakers to detect")
+        gr.Number(label="Diarization - Max Speakers", precision=0, value=app_config.diarization_max_speakers, interactive=has_diarization_libs, elem_id="diarization_max_speakers", info="The maximum number of speakers to detect"),
+        gr.Dropdown(label="Diarization Version", choices=["speaker-diarization-3.1", "speaker-diarization-3.0", "speaker-diarization@2.1.1"], value=app_config.diarization_version, elem_id="diarization_version", info="pyannote.audio speaker diarization pipeline v3.1 is expected to be much better (and faster) than v2.x. [Benchmark](https://github.com/pyannote/pyannote-audio?tab=readme-ov-file#benchmark)"),
     }
     
     common_output = lambda : [
@@ -1439,6 +1444,7 @@ if __name__ == '__main__':
     parser.add_argument("--diarization_max_speakers", type=int, default=default_app_config.diarization_max_speakers, help="Maximum number of speakers")
     parser.add_argument("--diarization_process_timeout", type=int, default=default_app_config.diarization_process_timeout, \
                         help="Number of seconds before inactivate diarization processes are terminated. Use 0 to close processes immediately, or None for no timeout.")
+    parser.add_argument('--diarization_version', type=str, default=default_app_config.diarization_version, help='Specify the diarization version, defaulting to speaker-diarization-3.1')
 
     args = parser.parse_args().__dict__
 

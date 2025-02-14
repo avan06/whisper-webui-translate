@@ -26,15 +26,16 @@ class DiarizationEntry:
         }
 
 class Diarization:
-    def __init__(self, auth_token=None):
+    def __init__(self, auth_token=None, diarization_version=None):
         if auth_token is None:
             auth_token = os.environ.get("HF_ACCESS_TOKEN")
             if auth_token is None:
                 raise ValueError("No HuggingFace API Token provided - please use the --auth_token argument or set the HF_ACCESS_TOKEN environment variable")
         
-        self.auth_token = auth_token
-        self.initialized = False
-        self.pipeline = None
+        self.auth_token          = auth_token
+        self.initialized         = False
+        self.pipeline            = None
+        self.diarization_version = diarization_version
 
     @staticmethod
     def has_libraries():
@@ -47,17 +48,17 @@ class Diarization:
 
     def initialize(self):
         """
-        1.Install pyannote.audio 3.0 with pip install pyannote.audio
+        1.Install pyannote.audio 3.1 with pip install pyannote.audio
         2.Accept pyannote/segmentation-3.0 user conditions
-        3.Accept pyannote/speaker-diarization-3.0 user conditions
+        3.Accept pyannote/speaker-diarization-3.1 user conditions
         4.Create access token at hf.co/settings/tokens.
-        https://huggingface.co/pyannote/speaker-diarization-3.0
+        https://huggingface.co/pyannote/speaker-diarization-3.1
         """
         if self.initialized:
             return
         from pyannote.audio import Pipeline
-
-        self.pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.0", use_auth_token=self.auth_token)
+        
+        self.pipeline = Pipeline.from_pretrained(f"pyannote/{self.diarization_version}", use_auth_token=self.auth_token)
         self.initialized = True
 
         # Load GPU mode if available
@@ -174,7 +175,7 @@ def main():
     # Read whisper JSON or SRT file
     whisper_result = load_transcript(args.whisper_file)
 
-    diarization = Diarization(auth_token=args.auth_token)
+    diarization = Diarization(auth_token=args.auth_token, diarization_version=args.diarization_version)
     diarization_result = list(diarization.run(args.audio_file, num_speakers=args.num_speakers, min_speakers=args.min_speakers, max_speakers=args.max_speakers))
 
     # Print result

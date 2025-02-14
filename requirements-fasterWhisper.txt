@@ -20,7 +20,7 @@ sentencepiece
 # Needed by diarization
 intervaltree
 srt
-https://github.com/pyannote/pyannote-audio/archive/refs/heads/develop.zip
+pyannote.audio
 
 # Needed by ALMA-GPTQ
 accelerate

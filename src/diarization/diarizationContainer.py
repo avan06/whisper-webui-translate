@@ -4,13 +4,14 @@ from src.modelCache import GLOBAL_MODEL_CACHE, ModelCache
 from src.vadParallel import ParallelContext
 
 class DiarizationContainer:
-    def __init__(self, auth_token: str = None, enable_daemon_process: bool = True, auto_cleanup_timeout_seconds=60, cache: ModelCache = None):
+    def __init__(self, auth_token: str = None, enable_daemon_process: bool = True, auto_cleanup_timeout_seconds=60, cache: ModelCache = None, diarization_version=None):
         self.auth_token = auth_token
         self.enable_daemon_process = enable_daemon_process
         self.auto_cleanup_timeout_seconds = auto_cleanup_timeout_seconds
         self.diarization_context: ParallelContext = None
         self.cache = cache
         self.model = None
+        self.diarization_version = diarization_version
 
     def run(self, audio_file, **kwargs):
         # Create parallel context if needed
@@ -37,18 +38,18 @@ class DiarizationContainer:
             return self.model.mark_speakers(diarization_result, whisper_result)
 
         # Create a new diarization model (calling mark_speakers will not initialize pyannote.audio)
-        model = Diarization(self.auth_token)
+        model = Diarization(self.auth_token, self.diarization_version)
         return model.mark_speakers(diarization_result, whisper_result)
 
     def get_model(self):
         # Lazy load the model
         if (self.model is None):
             if self.cache:
-                print("Loading diarization model from cache")
-                self.model = self.cache.get("diarization", lambda : Diarization(self.auth_token))
+                print(f"Loading {self.diarization_version} model from cache")
+                self.model = self.cache.get(self.diarization_version, lambda : Diarization(self.auth_token, self.diarization_version))
             else:
-                print("Loading diarization model")
-                self.model = Diarization(self.auth_token)
+                print(f"Loading {self.diarization_version} model")
+                self.model = Diarization(self.auth_token, self.diarization_version)
         return self.model
 
     def execute(self, audio_file, **kwargs):
@@ -66,7 +67,8 @@ class DiarizationContainer:
         return {
             "auth_token": self.auth_token,
             "enable_daemon_process": self.enable_daemon_process,
-            "auto_cleanup_timeout_seconds": self.auto_cleanup_timeout_seconds
+            "auto_cleanup_timeout_seconds": self.auto_cleanup_timeout_seconds,
+            "diarization_version": self.diarization_version
         }
     
     def __setstate__(self, state):
@@ -74,5 +76,6 @@ class DiarizationContainer:
         self.enable_daemon_process = state["enable_daemon_process"]
         self.auto_cleanup_timeout_seconds = state["auto_cleanup_timeout_seconds"]
         self.diarization_context = None
+        self.diarization_version = state["diarization_version"]
         self.cache = GLOBAL_MODEL_CACHE
         self.model = None

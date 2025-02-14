@@ -150,7 +150,7 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
            yield segment
 
         if segment_longest_speaker is not None:
-            segment_longest_speaker = segment_longest_speaker.replace("SPEAKER", "S")
+            segment_longest_speaker = "(" + segment_longest_speaker.replace("SPEAKER", "S") + ")"
             
         subtitle_start = segment['start']
         subtitle_end   = segment['end']
@@ -160,7 +160,9 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
         if len(words) == 0:
             # Prepend the longest speaker ID if available
             if segment_longest_speaker is not None:
-                text = f"({segment_longest_speaker}) {text}"
+                text = f"{segment_longest_speaker} {text}"
+                if text_original is not None and len(text_original) > 0:
+                    text_original = f"{segment_longest_speaker} {text_original}"
                 
             result = {
                 'start': subtitle_start,
@@ -175,12 +177,16 @@ def __subtitle_preprocessor_iterator(transcript: Iterator[dict], maxLineWidth: i
             continue
 
         if segment_longest_speaker is not None:
-            # Add the beginning
-            words.insert(0, {
-                'start': subtitle_start,
-                'end'  : subtitle_start,
-                'word' : f"({segment_longest_speaker})"
-            })
+            if words[0].get('word') != segment_longest_speaker:
+                # Add the beginning
+                words.insert(0, {
+                    'start': subtitle_start,
+                    'end'  : subtitle_start,
+                    'word' : segment_longest_speaker
+                })
+            text = f"{segment_longest_speaker} {text}"
+            if text_original is not None and len(text_original) > 0:
+                text_original = f"{segment_longest_speaker} {text_original}"
             
         text_words = [text] if not highlight_words and text_original is not None and len(text_original) > 0 else [ this_word["word"] for this_word in words ]
 
