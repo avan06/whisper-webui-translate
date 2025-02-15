@@ -4,9 +4,9 @@ emoji: ✨
 colorFrom: blue
 colorTo: purple
 sdk: gradio
-sdk_version: 5.15.0
+sdk_version: 5.16.0
 app_file: app.py
-pinned: false
+pinned: true
 license: apache-2.0
 duplicated_from: aadnk/whisper-webui
 ---

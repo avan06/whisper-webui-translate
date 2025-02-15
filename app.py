@@ -1153,9 +1153,9 @@ def create_ui(app_config: ApplicationConfig):
     ]
     
     css = """
-.options {
-    max-height: 65vh !important;
-    overflow-y: auto !important;
+ul.options {
+    max-height: 500px !important; /* Set the maximum height of the dropdown menu */
+    overflow-y: auto !important; /* Enable vertical scrolling if the content exceeds the height */
 }
 .scroll-show textarea {
     overflow-y: auto !important;
@@ -1216,7 +1216,7 @@ def create_ui(app_config: ApplicationConfig):
                         llamaTab.select(fn=lambda: "Llama", inputs = [], outputs= [translateInput] )
                     with gr.Column():
                         with gr.Tab(label="URL") as UrlTab:
-                            inputDict.update({gr.Text(label="URL (YouTube, etc.)", elem_id = "urlData")})
+                            inputDict.update({gr.Text(label="Download from URL, Since YouTube has restricted unauthorized connections, an error message is expected.", elem_id = "urlData")})
                         with gr.Tab(label="Upload") as UploadTab:
                             inputDict.update({gr.File(label="Upload Files", file_count="multiple", elem_id = "multipleFiles")})
                         with gr.Tab(label="Microphone") as MicTab: # [Gradio 5.x] TypeError: Audio.__init__() got an unexpected keyword argument 'source'
@@ -1367,7 +1367,7 @@ def create_ui(app_config: ApplicationConfig):
     fullTranscribe   = create_transcribe(fullDescription, is_queue_mode, True)
     uiTranslation    = create_translation(is_queue_mode)
 
-    demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe, uiTranslation], tab_names=["Simple", "Full", "Translation"], css=css)
+    demo = gr.TabbedInterface([simpleTranscribe, fullTranscribe, uiTranslation], tab_names=["Simple", "Full", "Translation"], css = css)
 
     # Queue up the demo
     if is_queue_mode: # [Gradio 5.x] TypeError: Blocks.queue() got an unexpected keyword argument 'concurrency_count'
