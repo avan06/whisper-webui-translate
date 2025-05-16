@@ -4,7 +4,7 @@ transformers>=4.45.2
 ctranslate2>=4.4.0
 git+https://github.com/openai/whisper.git
 ffmpeg-python==0.2.0
-gradio==5.16.0
+gradio==5.29.1
 yt-dlp
 json5
 
