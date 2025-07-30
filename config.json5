@@ -38,6 +38,11 @@
       {
         "name": "large-v3-turbo",
         "url": "large-v3-turbo"
+      },
+      {
+        "name": "Breeze-ASR-25",
+        "url": "SoybeanMilk/faster-whisper-Breeze-ASR-25",
+        "type": "huggingface"
       }
       // Uncomment to add custom Japanese models
       //{

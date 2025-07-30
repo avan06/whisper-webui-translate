@@ -1,4 +1,4 @@
-﻿# Standard Options
+# Standard Options
 To transcribe or translate an audio file, you can either copy an URL from a website (all [websites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 
 supported by YT-DLP will work, including YouTube). Otherwise, upload an audio file (choose "All Files (*.*)" 
 in the file selector to select any file type, including video files) or use the microphone.
@@ -18,6 +18,7 @@ Select the model that Whisper will use to transcribe the audio:
 | large-v2  | 1550 M     | N/A                | large              | ~10 GB        | 1x             |
 | large-v3  | 1550 M     | N/A                | large              | ~10 GB        | 1x             |
 | turbo     | 809 M      | N/A                | turbo              | ~6 GB         | 8x             |
+| breeze-asr-25 | 1550 M | N/A                | breeze-asr-25      | ~10 GB        | 1x             |
 
 ## Language
 

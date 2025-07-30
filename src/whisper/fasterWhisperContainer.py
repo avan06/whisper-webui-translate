@@ -47,8 +47,10 @@ class FasterWhisperContainer(AbstractWhisperContainer):
             if model_url == "large":
                 # large is an alias for large-v1
                 model_url = "large-v1"
-            elif model_url == "large-v3-turbo":
+            if model_url == "large-v3-turbo":
                 model_url = "deepdml/faster-whisper-large-v3-turbo-ct2"
+            elif model_url == "Breeze-ASR-25":
+                model_url = "SoybeanMilk/faster-whisper-Breeze-ASR-25"
 
         device = self.device
 
